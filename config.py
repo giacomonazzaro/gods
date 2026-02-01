@@ -2,7 +2,7 @@ tweak = {
     # Window settings
     "window_width": 1200,
     "window_height": 800,
-    "window_title": "Card Game",
+    "window_title": "Card Table",
     "target_fps": 60,
     "background_color": (40, 44, 52, 255),
 
@@ -23,14 +23,6 @@ tweak = {
     # Font settings
     "title_font_size": 16,
     "description_font_size": 12,
-
-    # Stack positions (x, y)
-    "draw_pile_pos": (100, 300),
-    "discard_pile_pos": (1000, 300),
-    "hand_pos": (400, 600),
-
-    # Table area (where cards can be dropped freely)
-    "table_area": (0, 0, 1200, 550),  # x, y, width, height
 
     # Stack spread (how much cards offset from each other)
     "hand_spread_x": 80,

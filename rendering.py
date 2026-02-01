@@ -136,19 +136,17 @@ def draw_game(game_state: Game_State) -> None:
         draw_stack_placeholder(game_state.draw_pile, "Draw")
     if not game_state.discard_pile.cards:
         draw_stack_placeholder(game_state.discard_pile, "Discard")
-
-    drag = game_state.drag_state
+    if not game_state.play_area.cards:
+        draw_stack_placeholder(game_state.play_area, "Play Area")
 
     # Draw stacks (excluding dragged card)
-    for stack in [game_state.draw_pile, game_state.discard_pile, game_state.hand]:
+    drag = game_state.drag_state
+
+    for stack in [game_state.draw_pile, game_state.discard_pile,
+                  game_state.play_area, game_state.hand]:
         for card in stack.cards:
             if card != drag.card:
                 draw_card(card, face_up=stack.face_up)
-
-    # Draw table cards (excluding dragged card)
-    for card in game_state.table_cards:
-        if card != drag.card:
-            draw_card(card, face_up=True)
 
     # Draw dragged card on top
     if drag.card:

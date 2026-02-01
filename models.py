@@ -10,7 +10,7 @@ class Card:
     image_path: str | None = None
     x: float = 0.0
     y: float = 0.0
-
+    tapped: bool = False  # Whether the card is rotated (e.g., for certain game mechanics)
 
 @dataclass
 class Stack:
@@ -31,9 +31,7 @@ class Drag_State:
 
 
 @dataclass
-class Game_State:
-    draw_pile: Stack
-    hand: Stack
-    discard_pile: Stack
-    table_cards: list[Card] = field(default_factory=list)  # Cards on table keep their own positions
+class Table_State:
+    stacks: list[Stack] = field(default_factory=list)
+    loose_cards: list[Card] = field(default_factory=list)  # Cards not in any stack
     drag_state: Drag_State = field(default_factory=Drag_State)
