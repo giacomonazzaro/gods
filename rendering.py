@@ -1,5 +1,5 @@
 from pyray import *
-from models import Card, Stack, Game_State
+from models import Card, Stack, Table_State
 from config import tweak
 
 
@@ -129,37 +129,26 @@ def draw_stack_placeholder(stack: Stack, label: str) -> None:
     )
 
 
-def draw_game(game_state: Game_State) -> None:
-    """Draw the complete game state."""
-    # Draw placeholders for empty stacks
-    if not game_state.draw_pile.cards:
-        draw_stack_placeholder(game_state.draw_pile, "Draw")
-    if not game_state.discard_pile.cards:
-        draw_stack_placeholder(game_state.discard_pile, "Discard")
-    if not game_state.play_area.cards:
-        draw_stack_placeholder(game_state.play_area, "Play Area")
+def draw_table(state: Table_State) -> None:
+    """Draw the complete table state."""
+    drag = state.drag_state
+
+    # Draw stack placeholders for empty stacks
+    for stack in state.stacks:
+        if not stack.cards:
+            draw_stack_placeholder(stack, "")
 
     # Draw stacks (excluding dragged card)
-    drag = game_state.drag_state
-
-    for stack in [game_state.draw_pile, game_state.discard_pile,
-                  game_state.play_area, game_state.hand]:
+    for stack in state.stacks:
         for card in stack.cards:
             if card != drag.card:
                 draw_card(card, face_up=stack.face_up)
 
+    # Draw loose cards (excluding dragged card)
+    for card in state.loose_cards:
+        if card != drag.card:
+            draw_card(card, face_up=True)
+
     # Draw dragged card on top
     if drag.card:
         draw_card(drag.card, face_up=True)
-
-    # Draw UI hints
-    draw_text("Click draw pile to draw | Drag cards to play | R to end turn",
-              10, tweak["window_height"] - 25, 14, Color(150, 150, 150, 255))
-
-    # Draw card counts
-    draw_text(f"Draw: {len(game_state.draw_pile.cards)}",
-              int(tweak["draw_pile_pos"][0]), int(tweak["draw_pile_pos"][1] - 25),
-              14, Color(200, 200, 200, 255))
-    draw_text(f"Discard: {len(game_state.discard_pile.cards)}",
-              int(tweak["discard_pile_pos"][0]), int(tweak["discard_pile_pos"][1] - 25),
-              14, Color(200, 200, 200, 255))
