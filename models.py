@@ -16,7 +16,7 @@ class Card:
 class Stack:
     x: float
     y: float
-    cards: list[Card] = field(default_factory=list)
+    cards: list[int] = field(default_factory=list)
     spread_x: float = 0.0  # Horizontal offset between cards
     spread_y: float = 0.0  # Vertical offset between cards
     face_up: bool = True   # Whether cards are visible
@@ -24,14 +24,15 @@ class Stack:
 
 @dataclass
 class Drag_State:
-    card: Card | None = None
-    source_stack: Stack | None = None
+    card_id: int = -1  # -1 means no card being dragged
+    source_stack: int = -1  # -1 means was a loose card
     offset_x: float = 0.0
     offset_y: float = 0.0
 
 
 @dataclass
 class Table_State:
+    cards: list[Card] = field(default_factory=list)
     stacks: list[Stack] = field(default_factory=list)
-    loose_cards: list[Card] = field(default_factory=list)  # Cards not in any stack
+    loose_cards: list[int] = field(default_factory=list)  # Card indices not in any stack
     drag_state: Drag_State = field(default_factory=Drag_State)

@@ -12,14 +12,15 @@ def point_in_card(px: float, py: float, card: Card) -> bool:
     return (card.x <= px <= card.x + w and card.y <= py <= card.y + h)
 
 
-def point_in_stack_area(px: float, py: float, stack: Stack) -> bool:
+def point_in_stack_area(px: float, py: float, stack: Stack, state: Table_State) -> bool:
     """Check if point is in the stack's general area (for drop targets)."""
     w = tweak["card_width"]
     h = tweak["card_height"]
 
     if stack.cards:
         # Calculate bounds including all cards in stack
-        last_card = stack.cards[-1]
+        last_card_id = stack.cards[-1]
+        last_card = state.cards[last_card_id]
         max_x = last_card.x + w
         max_y = last_card.y + h
         return (stack.x <= px <= max_x and stack.y <= py <= max_y)
@@ -28,27 +29,30 @@ def point_in_stack_area(px: float, py: float, stack: Stack) -> bool:
         return (stack.x <= px <= stack.x + w and stack.y <= py <= stack.y + h)
 
 
-def find_card_at(px: float, py: float, state: Table_State) -> tuple[Card, Stack | None] | None:
-    """Find the topmost card at position. Returns (card, stack) or None.
-    For loose cards, stack is None."""
+def find_card_at(px: float, py: float, state: Table_State) -> tuple[int, int] | None:
+    """Find the topmost card at position. Returns (card_id, stack_index) or None.
+    For loose cards, stack_index is -1."""
     # Check loose cards first (on top of everything)
-    for card in reversed(state.loose_cards):
+    for card_id in reversed(state.loose_cards):
+        card = state.cards[card_id]
         if point_in_card(px, py, card):
-            return (card, None)
+            return (card_id, -1)
     # Check stacks (reverse order so we check top cards first)
-    for stack in reversed(state.stacks):
-        for card in reversed(stack.cards):
+    for stack_idx in range(len(state.stacks) - 1, -1, -1):
+        stack = state.stacks[stack_idx]
+        for card_id in reversed(stack.cards):
+            card = state.cards[card_id]
             if point_in_card(px, py, card):
-                return (card, stack)
+                return (card_id, stack_idx)
     return None
 
 
-def find_stack_at(px: float, py: float, state: Table_State) -> Stack | None:
-    """Find a stack at the given position."""
-    for stack in state.stacks:
-        if point_in_stack_area(px, py, stack):
-            return stack
-    return None
+def find_stack_at(px: float, py: float, state: Table_State) -> int:
+    """Find a stack at the given position. Returns stack index or -1."""
+    for i, stack in enumerate(state.stacks):
+        if point_in_stack_area(px, py, stack, state):
+            return i
+    return -1
 
 
 def handle_mouse_press(state: Table_State) -> None:
@@ -60,42 +64,40 @@ def handle_mouse_press(state: Table_State) -> None:
     # Check if clicking a card
     result = find_card_at(mx, my, state)
     if result:
-        card, stack = result
-        drag.card = card
-        drag.source_stack = stack
+        card_id, stack_idx = result
+        card = state.cards[card_id]
+        drag.card_id = card_id
+        drag.source_stack = stack_idx
         drag.offset_x = mx - card.x
         drag.offset_y = my - card.y
         # Remove from source
-        if stack:
-            gs.remove_card_from_stack(card, stack)
+        if stack_idx >= 0:
+            gs.remove_card_from_stack(card_id, state.stacks[stack_idx], state)
         else:
-            gs.remove_loose_card(card, state)
+            gs.remove_loose_card(card_id, state)
 
 
 def handle_mouse_release(state: Table_State) -> None:
     """Handle mouse button release - drop card."""
     drag = state.drag_state
 
-    if not drag.card:
+    if drag.card_id < 0:
         return
 
     mx = get_mouse_x()
     my = get_mouse_y()
 
     # Check if dropping on a stack
-    target_stack = find_stack_at(mx, my, state)
-    if target_stack:
-        gs.add_card_to_stack(drag.card, target_stack)
-    elif drag.source_stack:
-        # Drop as loose card if not on a stack
-        gs.add_loose_card(drag.card, state)
+    target_stack_idx = find_stack_at(mx, my, state)
+    if target_stack_idx >= 0:
+        gs.add_card_to_stack(drag.card_id, state.stacks[target_stack_idx], state)
     else:
-        # Was a loose card, stays loose
-        gs.add_loose_card(drag.card, state)
+        # Drop as loose card if not on a stack
+        gs.add_loose_card(drag.card_id, state)
 
     # Clear drag state
-    drag.card = None
-    drag.source_stack = None
+    drag.card_id = -1
+    drag.source_stack = -1
     drag.offset_x = 0
     drag.offset_y = 0
 
@@ -104,9 +106,10 @@ def handle_mouse_move(state: Table_State) -> None:
     """Update dragged card position."""
     drag = state.drag_state
 
-    if drag.card:
-        drag.card.x = get_mouse_x() - drag.offset_x
-        drag.card.y = get_mouse_y() - drag.offset_y
+    if drag.card_id >= 0:
+        card = state.cards[drag.card_id]
+        card.x = get_mouse_x() - drag.offset_x
+        card.y = get_mouse_y() - drag.offset_y
 
 
 def handle_rotate_card(state: Table_State, clockwise: bool = True) -> None:
@@ -116,7 +119,8 @@ def handle_rotate_card(state: Table_State, clockwise: bool = True) -> None:
 
     result = find_card_at(mx, my, state)
     if result:
-        card, _ = result
+        card_id, _ = result
+        card = state.cards[card_id]
         if clockwise:
             card.rotation = (card.rotation + 90) % 360
         else:

@@ -123,9 +123,10 @@ def draw_card(card: Card, face_up: bool = True) -> None:
         rl_pop_matrix()
 
 
-def draw_stack(stack: Stack) -> None:
+def draw_stack(stack: Stack, state: Table_State) -> None:
     """Draw all cards in a stack."""
-    for card in stack.cards:
+    for card_id in stack.cards:
+        card = state.cards[card_id]
         draw_card(card, face_up=stack.face_up)
 
 
@@ -163,15 +164,18 @@ def draw_table(state: Table_State) -> None:
 
     # Draw stacks (excluding dragged card)
     for stack in state.stacks:
-        for card in stack.cards:
-            if card != drag.card:
+        for card_id in stack.cards:
+            if card_id != drag.card_id:
+                card = state.cards[card_id]
                 draw_card(card, face_up=stack.face_up)
 
     # Draw loose cards (excluding dragged card)
-    for card in state.loose_cards:
-        if card != drag.card:
+    for card_id in state.loose_cards:
+        if card_id != drag.card_id:
+            card = state.cards[card_id]
             draw_card(card, face_up=True)
 
     # Draw dragged card on top
-    if drag.card:
-        draw_card(drag.card, face_up=True)
+    if drag.card_id >= 0:
+        card = state.cards[drag.card_id]
+        draw_card(card, face_up=True)
