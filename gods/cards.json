@@ -57,28 +57,28 @@
   },
   {
     "name": "Aurora",
-    "type": "wonder",
+    "type": "event",
     "power": 0,
     "color": "blue",
     "effect": "Draw ○ cards."
   },
   {
     "name": "Darkness",
-    "type": "wonder",
+    "type": "event",
     "power": 0,
     "color": "blue",
     "effect": "The opponent discards ○ cards from their hand."
   },
   {
     "name": "Spring",
-    "type": "wonder",
+    "type": "event",
     "power": 0,
     "color": "green",
     "effect": "Add ○ +1 counters on a people."
   },
   {
     "name": "Regrowth",
-    "type": "wonder",
+    "type": "event",
     "power": 0,
     "color": "green",
     "effect": "Restore any number of peoples with power ○ or less."
@@ -137,7 +137,7 @@
     "type": "wonder",
     "power": 0,
     "color": "blue",
-    "effect": "Your other blue wonders get +○."
+    "effect": ""
   },
   {
     "name": "Knowledge",
@@ -151,7 +151,7 @@
     "type": "wonder",
     "power": 0,
     "color": "blue",
-    "effect": "Opponent events get -○ down to a minimum of 1 power."
+    "effect": "Your blue wonders get +○."
   },
   {
     "name": "Deserts",
@@ -176,7 +176,7 @@
   },
   {
     "name": "Flood",
-    "type": "wonder",
+    "type": "event",
     "power": 0,
     "color": "blue",
     "effect": "Destroy all unclaimed peoples with power ○ or less."
@@ -270,6 +270,6 @@
     "type": "wonder",
     "power": 0,
     "color": "blue",
-    "effect": "When you draw cards, you may do ○ from the shared deck. They have power ○."
+    "effect": "When you draw cards, you may do so from the shared deck. They have power ○."
   }
 ]

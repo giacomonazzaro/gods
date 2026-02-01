@@ -2,8 +2,8 @@ from __future__ import annotations
 import random
 import copy
 from typing import Optional
-from models import Card, Card_Type, Card_Color, Player, Game_State
-from cards import (
+from gods.models import Card, Card_Type, Card_Color, Player, Game_State
+from gods.cards import (
     get_people_cards, execute_card_effect, draw_card,
     get_wonder_power_bonus, get_event_power_bonus, get_event_power_penalty
 )

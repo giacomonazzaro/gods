@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import random
 from typing import Callable, Optional
-from models import Card, Card_Type, Card_Color, Game_State, Player
+from gods.models import Card, Card_Type, Card_Color, Game_State, Player
 
 
 def load_cards_from_json(filepath: str) -> list[dict]:
@@ -480,8 +480,8 @@ def get_wonder_power_bonus(game: Game_State, player_idx: int, wonder: Card) -> i
     for w in player.wonders:
         if w is wonder:
             continue
-        # Wisdom: Your other blue wonders get +○
-        if w.name == "Wisdom" and wonder.color == Card_Color.BLUE:
+        # Sky: Your other blue wonders get +○
+        if w.name == "Sky" and wonder.color == Card_Color.BLUE:
             bonus += w.effective_power()
         # Sun: Your green wonders get +○
         if w.name == "Sun" and wonder.color == Card_Color.GREEN:

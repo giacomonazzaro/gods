@@ -1,16 +1,16 @@
 tweak = {
     # Window settings
-    "window_width": 1200,
-    "window_height": 800,
-    "window_title": "Card Table",
+    "window_width": 1400,
+    "window_height": 900,
+    "window_title": "Gods",
     "target_fps": 60,
     "background_color": (40, 44, 52, 255),
 
     # Card dimensions
-    "card_width": 120,
-    "card_height": 160,
-    "card_corner_radius": 10,
-    "card_padding": 8,
+    "card_width": 100,
+    "card_height": 140,
+    "card_corner_radius": 8,
+    "card_padding": 6,
 
     # Card colors
     "card_background": (255, 255, 255, 255),
@@ -21,13 +21,44 @@ tweak = {
     "card_description_color": (80, 80, 80, 255),
 
     # Font settings
-    "title_font_size": 16,
-    "description_font_size": 12,
+    "title_font_size": 14,
+    "description_font_size": 10,
+    "power_font_size": 24,
 
     # Stack spread (how much cards offset from each other)
-    "hand_spread_x": 80,
+    "hand_spread_x": 70,
     "pile_spread_y": 2,  # Small offset for stacked piles
+    "wonders_spread_x": 110,
 
     # Drag settings
     "drag_scale": 1.1,  # Cards scale up slightly when dragged
+
+    # Gods game layout
+    "player1_hand_y": 740,
+    "player1_zones_y": 600,
+    "player2_hand_y": 20,
+    "player2_zones_y": 170,
+    "peoples_y": 380,
+    "deck_x": 50,
+    "discard_x": 170,
+    "wonders_x": 320,
+    "hand_x": 200,
+    "peoples_x": 400,
+    "button_height": 40,
+    "button_width": 120,
+    "ui_y": 850,
+
+    # Card type colors (backgrounds)
+    "color_green": (180, 220, 180, 255),
+    "color_blue": (180, 200, 230, 255),
+    "color_red": (230, 180, 180, 255),
+    "color_yellow": (240, 230, 180, 255),
+
+    # UI colors
+    "button_color": (70, 130, 180, 255),
+    "button_hover_color": (90, 150, 200, 255),
+    "button_text_color": (255, 255, 255, 255),
+    "highlight_color": (255, 215, 0, 200),
+    "current_player_color": (100, 200, 100, 255),
+    "modal_overlay": (0, 0, 0, 180),
 }
