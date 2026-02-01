@@ -2,9 +2,9 @@ from __future__ import annotations
 import random
 import copy
 from typing import Optional
-from models import Card, Card_Type, Card_Color, Player, Game_State
-from cards import get_playable_cards, get_people_cards
-from game import (
+from gods.models import Card, Card_Type, Card_Color, Player, Game_State
+from gods.cards import get_playable_cards, get_people_cards
+from gods.game import (
     create_game, setup_game, play_card, pass_turn, declare_end_game,
     check_people_conditions, calculate_scores, determine_winner,
     trigger_start_of_turn_effects
