@@ -10,7 +10,7 @@ class Card:
     image_path: str | None = None
     x: float = 0.0
     y: float = 0.0
-    tapped: bool = False  # Whether the card is rotated (e.g., for certain game mechanics)
+    rotation: int = 0  # Rotation angle in degrees (0, 90, 180, 270)
 
 @dataclass
 class Stack:

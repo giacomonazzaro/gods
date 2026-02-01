@@ -109,6 +109,20 @@ def handle_mouse_move(state: Table_State) -> None:
         drag.card.y = get_mouse_y() - drag.offset_y
 
 
+def handle_rotate_card(state: Table_State, clockwise: bool = True) -> None:
+    """Rotate the card under the cursor by 90 degrees."""
+    mx = get_mouse_x()
+    my = get_mouse_y()
+
+    result = find_card_at(mx, my, state)
+    if result:
+        card, _ = result
+        if clockwise:
+            card.rotation = (card.rotation + 90) % 360
+        else:
+            card.rotation = (card.rotation - 90) % 360
+
+
 def update_input(state: Table_State) -> None:
     """Main input processing - call each frame."""
     # Handle mouse
@@ -119,3 +133,10 @@ def update_input(state: Table_State) -> None:
 
     # Update drag position continuously
     handle_mouse_move(state)
+
+    # Handle card rotation
+    if is_key_pressed(KeyboardKey.KEY_R):
+        if is_key_down(KeyboardKey.KEY_LEFT_SHIFT) or is_key_down(KeyboardKey.KEY_RIGHT_SHIFT):
+            handle_rotate_card(state, clockwise=False)
+        else:
+            handle_rotate_card(state, clockwise=True)
