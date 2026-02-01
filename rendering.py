@@ -153,7 +153,34 @@ def draw_stack_placeholder(stack: Stack, label: str) -> None:
     )
 
 
-def draw_table(state: Table_State) -> None:
+def animate(rendered_state, target_state, dt: float = 0.1) -> None:
+    for r_stack, t_stack in zip(rendered_state.stacks, target_state.stacks):
+        r_stack.cards = t_stack.cards[:]
+    rendered_state.loose_cards = target_state.loose_cards[:]
+    rendered_state.drag_state = target_state.drag_state
+    
+    # Interpolate card positions
+    for r_card, t_card in zip(rendered_state.cards, target_state.cards):
+        r_card.x = r_card.x * (1 - dt) + t_card.x * dt
+        r_card.y = r_card.y * (1 - dt) + t_card.y * dt
+        r_card.rotation = r_card.rotation * (1 - dt) + t_card.rotation * dt
+
+    selected_card_id = target_state.drag_state.card_id
+    if selected_card_id >= 0:
+        rendered_state.cards[selected_card_id].x = target_state.cards[selected_card_id].x
+        rendered_state.cards[selected_card_id].y = target_state.cards[selected_card_id].y
+
+from copy import deepcopy
+state = None  # Global variable to hold current state for drawing
+def draw_table(target_state: Table_State) -> None:
+    # global state
+
+    global state
+    if state is None:
+        state = deepcopy(target_state)
+
+    animate(state, target_state)
+
     """Draw the complete table state."""
     drag = state.drag_state
 
@@ -165,15 +192,15 @@ def draw_table(state: Table_State) -> None:
     # Draw stacks (excluding dragged card)
     for stack in state.stacks:
         for card_id in stack.cards:
-            if card_id != drag.card_id:
-                card = state.cards[card_id]
-                draw_card(card, face_up=stack.face_up)
+            if card_id == drag.card_id: continue
+            card = state.cards[card_id]
+            draw_card(card, face_up=stack.face_up)
 
     # Draw loose cards (excluding dragged card)
     for card_id in state.loose_cards:
-        if card_id != drag.card_id:
-            card = state.cards[card_id]
-            draw_card(card, face_up=True)
+        if card_id == drag.card_id: continue
+        card = state.cards[card_id]
+        draw_card(card, face_up=True)
 
     # Draw dragged card on top
     if drag.card_id >= 0:
