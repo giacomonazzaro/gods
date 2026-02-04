@@ -1,0 +1,151 @@
+from __future__ import annotations
+from dataclasses import dataclass, field
+from gods.models import Game_State, Choice
+from gods.agents.randomized import Agent_Random
+from gods.game import compute_player_score, game_loop
+import copy
+import math
+import random
+import time
+
+
+@dataclass
+class MCTS_Node:
+    parent: int = -1  # index into tree, -1 means no parent (root)
+    action_index: int = -1  # action that led to this node
+    children: list[int] = field(default_factory=list)  # indices into tree
+    visits: int = 0
+    wins: float = 0.0
+    untried_actions: list[int] = field(default_factory=list)
+
+
+class Agent_MCTS:
+    def __init__(self, exploration: float = 1.41, time_limit: float = 10.0):
+        self.exploration = exploration
+        self.time_limit = time_limit  # max seconds for search
+        self.random_agent = Agent_Random()
+        self.player_index = None  # set during perform_action
+        self.tree: list[MCTS_Node] = []  # nodes stored by index
+
+    def message(self, msg: str):
+        pass  # silent agent
+
+    def create_node(self, parent: int = -1, action_index: int = -1) -> int:
+        node_index = len(self.tree)
+        self.tree.append(MCTS_Node(parent=parent, action_index=action_index))
+        return node_index
+
+    def ucb1(self, node_index: int) -> float:
+        node = self.tree[node_index]
+        if node.visits == 0:
+            return float('inf')
+        parent = self.tree[node.parent]
+        exploitation = node.wins / node.visits
+        exploration_term = self.exploration * math.sqrt(math.log(parent.visits) / node.visits)
+        return exploitation + exploration_term
+
+    def best_child(self, node_index: int) -> int:
+        node = self.tree[node_index]
+        return max(node.children, key=lambda c: self.ucb1(c))
+
+    def best_action(self, node_index: int) -> int:
+        node = self.tree[node_index]
+        best_child_index = max(node.children, key=lambda c: self.tree[c].visits)
+        return self.tree[best_child_index].action_index
+
+    def perform_action(self, state: Game_State, choice: Choice):
+        action_list = choice.actions
+        if len(action_list.actions) == 0:
+            return
+        if len(action_list.actions) == 1:
+            choice.resolve(state, choice, 0, self)
+            return 0
+
+        self.player_index = choice.player_index
+        selected = self.mcts_search(state, choice)
+        choice.resolve(state, choice, selected, self)
+        return selected
+
+    def mcts_search(self, state: Game_State, choice: Choice) -> int:
+        self.tree = []
+        root = self.create_node()
+        self.tree[root].untried_actions = list(range(len(choice.actions.actions)))
+
+        print("started:", choice.actions.type)
+        start_time = time.time()
+        iteration = 0
+        while (time.time() - start_time) < self.time_limit:
+            iteration += 1
+            # clone state for simulation
+            sim_state = copy.deepcopy(state)
+            sim_choice = copy.deepcopy(choice)
+            node_index = root
+
+            # selection: traverse tree using UCB1
+            node = self.tree[node_index]
+            while node.untried_actions == [] and node.children:
+                node_index = self.best_child(node_index)
+                node = self.tree[node_index]
+                sim_choice.resolve(sim_state, sim_choice, node.action_index, self.random_agent)
+                sim_choice = self.get_next_choice(sim_state)
+                if sim_choice is None:
+                    break
+
+            # expansion: add a new child node
+            if node.untried_actions and sim_choice is not None:
+                action = random.choice(node.untried_actions)
+                node.untried_actions.remove(action)
+                child_index = self.create_node(parent=node_index, action_index=action)
+                node.children.append(child_index)
+                node_index = child_index
+                node = self.tree[node_index]
+                sim_choice.resolve(sim_state, sim_choice, action, self.random_agent)
+                # initialize child's untried actions for the next choice
+                sim_choice = self.get_next_choice(sim_state)
+                if sim_choice is not None:
+                    node.untried_actions = list(range(len(sim_choice.actions.actions)))
+
+            # simulation: play randomly until game ends
+            result = self.simulate(sim_state)
+
+            # backpropagation: update statistics
+            while node_index != -1:
+                node = self.tree[node_index]
+                node.visits += 1
+                node.wins += result
+                node_index = node.parent
+
+        print(choice.actions.type, "iterations:", iteration)
+        root_node = self.tree[root]
+        for child_index in root_node.children:
+            child = self.tree[child_index]
+            print("child:", choice.actions.actions[child.action_index], child.visits, child.wins/child.visits)
+
+        return self.best_action(root)
+
+    def get_next_choice(self, state: Game_State) -> Choice:
+        if state.choices:
+            return state.choices[-1]
+        return None
+
+    def simulate(self, state: Game_State) -> float:
+        # play random moves until game ends using the actual game loop
+        game_loop(state, self.random_agent, display=None)
+        return self.evaluate(state)
+
+    def evaluate(self, state: Game_State) -> float:
+        # evaluate the final state from perspective of self.player_index
+        # returns value in [-1, 1] range for proper UCB1 exploration
+        my_score = compute_player_score(state, self.player_index)
+        opp_score = compute_player_score(state, 1 - self.player_index)
+        diff = my_score - opp_score
+        if diff == 0:
+            # tiebreaker: ending player loses
+            if state.ending_player == self.player_index:
+                return -1.0
+            else:
+                return 1.0
+        elif diff > 0:
+            return 1.0
+        else:
+            return -1.0

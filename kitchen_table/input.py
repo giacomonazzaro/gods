@@ -1,8 +1,8 @@
 from __future__ import annotations
 from pyray import *
-from models import Card, Stack, Table_State
-from config import tweak
-import game_state as gs
+from kitchen_table.models import Card, Stack, Table_State
+from kitchen_table.config import tweak
+import kitchen_table.game_state as gs
 
 
 def point_in_card(px: float, py: float, card: Card) -> bool:

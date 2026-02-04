@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Callable, List, Optional
 from enum import Enum
 
 
@@ -27,19 +27,38 @@ class Card:
     destroyed: bool = False
     counters: int = 0  # +1 counters
     owner: Optional[int] = None  # player index who controls this card (for people)
+    id: int = -1
 
-    def effective_power(self) -> int:
-        return self.power + self.counters
+    def on_draw(self, game, agent): pass
+    def on_draw_replacement(self, game, agent): return False
+    def on_played(self, game, agent): pass
+    def on_destroyed(self, game, agent): pass
+    def on_play(self, game, card_played, agent): pass
+    def on_destroy(self, game, card_destroyed, agent): pass
+    def on_restore(self, game, card_destroyed, agent): pass
+    def on_discard(self, game, card_discarded: List[Card], agent): pass
+    def on_pass(self, game, agent): pass
+    def on_turn_end(self, game, agent): pass
+    def on_turn_start(self, game, agent): pass
+    def power_modifier(self, game: Game_State, card: Card, power: int) -> int:
+        """Modify another card's power. Override in subclasses."""
+        return power
 
-    def __str__(self) -> str:
-        power_str = f"[{self.effective_power()}]" if self.counters else f"[{self.power}]"
-        destroyed_str = " (DESTROYED)" if self.destroyed else ""
-        return f"{self.name} {power_str} ({self.card_type.value}, {self.color.value}){destroyed_str}"
+    def eval_points(self, game: Game_State, player_index: int) -> int:
+        """Evaluate points for a people card. Override in people subclasses."""
+        return 0
 
-    def detailed_str(self) -> str:
-        effect_text = self.effect.replace("○", str(self.effective_power()))
-        return f"{self} - {effect_text}"
+    def on_scoring(self, game: Game_State) -> int:
+        """Points from this wonder at end of game. Override in subclasses."""
+        return 0
 
+    def on_scoring_people(self, game: Game_State, people: Card, points: int) -> int:
+        """Bonus points for a people card. Override in subclasses."""
+        return points
+
+    def wins_tie(self, game: Game_State, people: Card) -> bool:
+        """Whether this card breaks ties for a people. Override in subclasses."""
+        return False
 
 @dataclass
 class Player:
@@ -49,19 +68,38 @@ class Player:
     discard: list[Card] = field(default_factory=list)
     wonders: list[Card] = field(default_factory=list)  # wonders in play
 
-    def all_wonders_power(self, color: Optional[Card_Color] = None) -> int:
-        total = 0
-        for w in self.wonders:
-            if color is None or w.color == color:
-                total += w.effective_power()
-        return total
+@dataclass
+class Action_List:
+    type: str = "" # choose-wonder, choose-hand, choose-discard, choose-people, choose-binary 
+    actions: list = field(default_factory=list)  # list of Card_Id or other identifiers
+    
+@dataclass
+class Choice:
+    player_index: int = 0
+    actions: Action_List = Action_List()
+    resolve: Callable[[Game_State, Choice, int, any], None] = None  # last arg is agent
+    
 
+@dataclass
+class Card_Id:
+    area: str  # "deck", "hand", "discard", "wonders", "people"
+    card_index: int
+    owner_index: Optional[int] = None  # None means neutral / no owner
+
+    @staticmethod
+    def null() -> Card_Id:
+        return Card_Id(area="none", card_index=-1, owner_index=-1)
+
+    @staticmethod
+    def is_null(card_id: Card_Id) -> bool:
+        return card_id.area == "none" and card_id.card_index == -1 and card_id.owner_index == -1
 
 @dataclass
 class Game_State:
     players: list[Player]
     peoples: list[Card]  # people cards in the center
     current_player: int = 0
+    current_phase: str = "main"  # "start", "main", "end"
     game_ending: bool = False  # someone declared end
     ending_player: Optional[int] = None  # who triggered the end
     final_turn: bool = False  # is this the final turn?
@@ -69,11 +107,24 @@ class Game_State:
     extra_turns: int = 0  # for Prophecy card
     shared_deck: list[Card] = field(default_factory=list)  # for Stars card
 
+    choices: list[Choice] = field(default_factory=list)
+
     def active_player(self) -> Player:
         return self.players[self.current_player]
 
     def opponent(self) -> Player:
         return self.players[1 - self.current_player]
+
+    def peoples_ids(self) -> list[Card_Id]:
+        return [Card_Id(area="people", card_index=i, owner_index=card.owner) for (i, card) in enumerate(self.peoples)]
+    
+    def wonders_ids(self, player_index: int) -> list[Card_Id]:
+        result = []
+        for player in [self.active_player(), self.opponent()]:
+            player_index = self.players.index(player)
+            for (i, card) in enumerate(player.wonders):
+                result.append(Card_Id(area="wonders", card_index=i, owner_index=player_index))
+        return result
 
     def switch_turn(self) -> None:
         if self.extra_turns > 0:
@@ -88,3 +139,30 @@ class Game_State:
 
         if self.game_ending and self.current_player != self.ending_player:
             self.final_turn = True
+
+    def get_card(self, card_id: Card_Id) -> Card:
+        assert not Card_Id.is_null(card_id)
+        if card_id.area == "deck":
+            return self.players[card_id.owner_index].deck[card_id.card_index]
+        elif card_id.area == "hand":
+            return self.players[card_id.owner_index].hand[card_id.card_index]
+        elif card_id.area == "discard":
+            return self.players[card_id.owner_index].discard[card_id.card_index]
+        elif card_id.area == "wonders":
+            return self.players[card_id.owner_index].wonders[card_id.card_index]
+        elif card_id.area == "people":
+            return self.peoples[card_id.card_index]
+        else:
+            raise ValueError(f"Invalid card area: {card_id.area}")
+
+
+def effective_power(game: Game_State, card: Card) -> int:
+    """Calculate effective power of a card, applying all wonder power modifiers."""
+    power = card.power + card.counters
+    # Apply power modifiers from all wonders in play
+    for player in game.players:
+        for wonder in player.wonders:
+            power = wonder.power_modifier(game, card, power)
+    if power < 0:
+        power = 0
+    return power

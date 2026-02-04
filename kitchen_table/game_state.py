@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
-from models import Card, Stack, Table_State
-from config import tweak
+from kitchen_table.models import Card, Stack, Table_State
+from kitchen_table.config import tweak
 
 
 def create_card(id: str, title: str, description: str = "") -> Card:

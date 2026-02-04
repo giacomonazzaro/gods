@@ -1,9 +1,8 @@
 from pyray import *
-from config import tweak
-from game_state import create_example_table_state
-from rendering import draw_table, color_from_tuple
-from input import update_input
-from copy import deepcopy
+from kitchen_table.config import tweak
+from kitchen_table.game_state import create_example_table_state
+from kitchen_table.rendering import draw_table, color_from_tuple
+from kitchen_table.input import update_input
 
 
 def main():

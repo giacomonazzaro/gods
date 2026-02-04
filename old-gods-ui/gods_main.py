@@ -51,7 +51,6 @@ def main():
     ui.set_game(game)
 
     # Setup game (draw initial hands)
-    setup_game(game, ui)
     ui.message("Game started! Player 1 goes first.")
     ui.message("Click a card in your hand to play it.")
     ui.message("Click Pass to draw, or End Game to trigger final round.")

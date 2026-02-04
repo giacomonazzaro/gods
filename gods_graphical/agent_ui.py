@@ -1,0 +1,155 @@
+from gods.agents.agent import Agent
+from gods.models import Game_State, Choice, Card_Id
+from kitchen_table.models import Table_State
+from gods.game import *
+from kitchen_table.config import tweak
+from pyray import *
+import time
+
+def point_in_rect(mx: float, my: float, x: float, y: float, w: float, h: float) -> bool:
+    return x <= mx <= x + w and y <= my <= y + h
+
+def update_stacks(table_state: Table_State, gods_state: Game_State):
+    from kitchen_table.game_state import update_card_positions
+    def update_stack(stack_id: int, card_list: list[Card]):
+        table_state.stacks[stack_id].cards = [card.id for card in card_list]
+        update_card_positions(table_state.stacks[stack_id], table_state)
+
+    # Player 1 areas (bottom)
+    update_stack(0, gods_state.players[0].deck)
+    update_stack(1, gods_state.players[0].hand)
+    update_stack(2, gods_state.players[0].discard)
+    update_stack(3, gods_state.players[0].wonders)
+
+    # Player 2 areas (top)
+    update_stack(4, gods_state.players[1].deck)
+    update_stack(5, gods_state.players[1].hand)
+    update_stack(6, gods_state.players[1].discard)
+    update_stack(7, gods_state.players[1].wonders)
+
+    # People cards (center)
+    update_stack(8, gods_state.peoples)
+
+@dataclass
+class Button:
+    x: int
+    y: int
+    width: int
+    height: int
+    text: str = ""
+
+    def pressed(self, mx, my, click) -> bool:
+        if not click:
+            return False
+        return point_in_rect(mx, my, self.x, self.y, self.width, self.height)
+
+
+
+
+class Agent_UI(Agent):
+    def __init__(self, table_state: Table_State):
+        self.table_state = table_state
+        self.highlighted_cards = []
+        self.buttons = []
+        pass
+
+    def message(self, msg: str):
+        pass
+
+    def perform_action(self, state: Game_State, choice: Choice):
+        action_list = choice.actions
+        if len(action_list.actions) == 0:
+            return
+        elif len(action_list.actions) == 1:
+            choice.resolve(state, choice, 0, self)
+            return
+
+        mx, my = get_mouse_x(), get_mouse_y()
+        click = is_mouse_button_pressed(MouseButton.MOUSE_BUTTON_LEFT)
+
+        # Display options based on action type
+        count = len(action_list.actions)
+        button_w = 140
+        button_h = 45
+        gap = 20
+        total_width = count * button_w + (count - 1) * gap
+        start_x = (tweak["window_width"] - total_width) // 2
+        button_y = tweak["window_height"] - 80
+
+        if action_list.type == "main":
+            self.buttons = []
+            for i, action in enumerate(action_list.actions):
+                x = start_x + i * (button_w + gap)
+                button = Button(x, button_y, button_w, button_h, text=str(action))
+                self.buttons.append(button)
+
+        elif action_list.type == "choose-binary":
+            self.buttons = []
+            labels = ["Yes", "No"]
+            for i in range(2):
+                x = start_x + i * (button_w + gap)
+                button = Button(x, button_y, button_w, button_h, text=labels[i])
+                self.buttons.append(button)
+        elif action_list.type == "choose-card":
+            self.highlighted_cards = []
+            self.buttons = []
+            for i, card_id in enumerate(action_list.actions):
+                if Card_Id.is_null(card_id):
+                    button = Button(i * 100, i * 100, 30, 30)
+                    self.buttons.append(button)
+                else:
+                    card = state.get_card(card_id)
+                    kt_card = self.table_state.cards[card.id]
+                    self.highlighted_cards.append(card_id)
+        
+        selected = -1
+        while selected == -1:
+            time.sleep(1/60)  # Yield the GIL so the render thread can run
+            mx, my = get_mouse_x(), get_mouse_y()
+            click = is_mouse_button_pressed(MouseButton.MOUSE_BUTTON_LEFT)
+            if action_list.type == "main":
+                for i, action in enumerate(action_list.actions):
+                    if self.buttons[i].pressed(mx, my, click):
+                        selected = i
+                        break
+            elif action_list.type == "choose-binary":
+                for i in range(2):
+                    if self.buttons[i].pressed(mx, my, click):
+                        selected = i
+                        break
+            elif action_list.type == "choose-card":
+                for i, card_id in enumerate(action_list.actions):
+                    if Card_Id.is_null(card_id):
+                        if self.buttons[0].pressed(mx, my, click):
+                            selected = i
+                            break
+                    else:
+                        card = state.get_card(card_id)
+                        kt_card = self.table_state.cards[card.id]
+                        w = tweak["card_width"]
+                        h = tweak["card_height"]
+                        if click and point_in_rect(mx, my, kt_card.x, kt_card.y, w, h):
+                            selected = i
+                            break
+        
+        # )
+        # else:
+        #     # Fallback for unknown types
+        #     for i, action in enumerate(action_list.actions):
+        #         print(f"  {i + 1}: {action}")
+
+        # num_options = len(action_list.actions) if action_list.type != "choose-binary" else 2
+        # selected = -1
+        # while selected not in range(num_options):
+        #     try:
+        #         selected = int(input("Enter choice: "))
+        #         selected -= 1  # Adjust for 0-based index
+        #     except ValueError:
+        #         pass
+
+        if selected in range(len(action_list.actions)):
+            choice.resolve(state, choice, selected, self)
+        update_stacks(self.table_state, state)
+        self.highlighted_cards = []
+        self.buttons = []
+        return selected

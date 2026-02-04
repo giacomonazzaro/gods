@@ -1,37 +1,45 @@
 from __future__ import annotations
+from dataclasses import dataclass
 import random
-import copy
 from typing import Optional
-from gods.models import Card, Card_Type, Card_Color, Player, Game_State
-from gods.cards import (
-    get_people_cards, execute_card_effect, draw_card,
-    get_wonder_power_bonus, get_event_power_bonus, get_event_power_penalty
-)
+from gods.models import Action_List, Card, Card_Id, Card_Type, Choice, Player, Game_State, effective_power
 
 
-def create_game(player1_deck: list[Card], player2_deck: list[Card], people_cards: list[Card]) -> Game_State:
-    """Initialize a new game with the given decks and people cards."""
-    p1 = Player(name="Player 1", deck=player1_deck.copy())
-    p2 = Player(name="Player 2", deck=player2_deck.copy())
+def draw_card(game: Game_State, player_id: int, agent: any, replacement_effects=True) -> Optional[Card]:
+    """Draw a card from the player's deck."""
+    player = game.players[player_id]
+    if len(player.deck) == 0:
+        return None
 
-    random.shuffle(p1.deck)
-    random.shuffle(p2.deck)
+    if replacement_effects:
+        for w in player.wonders:
+            replaced = w.on_draw_replacement(game, agent)
+            if replaced:
+                return
 
-    game = Game_State(
-        players=[p1, p2],
-        peoples=people_cards.copy()
-    )
+    for w in player.wonders:
+        card_drawn = w.on_draw(game, agent)
+        if card_drawn is not None:
+            return card_drawn
+        
+    card = player.deck.pop()
+    player.hand.append(card)
+    return card
 
-    return game
 
+def discard_card(game: Game_State, card_id: Card_Id, agent: any):
+    """Draw a card from the player's deck."""
+    player_id = card_id.owner_index
+    player = game.players[player_id]
+    assert card_id.area == "hand"
+    
+    card = game.get_card(card_id)
+    for w in player.wonders:
+        w.on_discard(game, card, agent)
+        
+    del player.hand[card_id.card_index]
+    player.discard.append(card)
 
-def setup_game(game: Game_State, ui: any) -> None:
-    """Draw initial hands for both players."""
-    for player in game.players:
-        for _ in range(5):
-            if player.deck:
-                card = player.deck.pop()
-                player.hand.append(card)
 
 
 def check_people_conditions(game: Game_State, ui: any) -> None:
@@ -41,10 +49,10 @@ def check_people_conditions(game: Game_State, ui: any) -> None:
         new_owner = evaluate_people_condition(game, people, ui)
 
         if new_owner != old_owner:
-            if new_owner is not None:
-                ui.message(f"{game.players[new_owner].name} now controls {people.name}!")
-            elif old_owner is not None:
-                ui.message(f"{people.name} is no longer controlled by anyone!")
+            # if new_owner is not None:
+            #     print(f"{game.players[new_owner].name} now controls {people.name}!")
+            # elif old_owner is not None:
+            #     print(f"{people.name} is no longer controlled by anyone!")
             people.owner = new_owner
 
 
@@ -53,116 +61,43 @@ def evaluate_people_condition(game: Game_State, people: Card, ui: any) -> Option
     Evaluate who should control a people card.
     Returns player index (0 or 1) or None if tied/no one qualifies.
     """
-    scores = [0, 0]
+    scores = [
+        people.eval_points(game, 0),
+        people.eval_points(game, 1)
+    ]
 
-    if people.name == "Egyptians":
-        # You have the most total power among green wonders
-        for i, player in enumerate(game.players):
-            scores[i] = sum(
-                w.effective_power() + get_wonder_power_bonus(game, i, w)
-                for w in player.wonders if w.color == Card_Color.GREEN
-            )
-
-    elif people.name == "Greeks":
-        # You have twice or more cards in hand than the opponent
-        for i, player in enumerate(game.players):
-            opponent = game.players[1 - i]
-            if len(player.hand) >= 2 * len(opponent.hand) and len(opponent.hand) > 0:
-                scores[i] = 1
-            elif len(player.hand) >= 2 and len(opponent.hand) == 0:
-                scores[i] = 1
-
-    elif people.name == "Vikings":
-        # You have the most cards in your deck
-        for i, player in enumerate(game.players):
-            scores[i] = len(player.deck)
-
-    elif people.name == "Minoans":
-        # You have the most wonders
-        for i, player in enumerate(game.players):
-            scores[i] = len(player.wonders)
-
-    elif people.name == "Babylonians":
-        # You have the most total power among wonders
-        for i, player in enumerate(game.players):
-            scores[i] = sum(
-                w.effective_power() + get_wonder_power_bonus(game, i, w)
-                for w in player.wonders
-            )
-
-    elif people.name == "Romans":
-        # You have the most total power among red wonders
-        for i, player in enumerate(game.players):
-            scores[i] = sum(
-                w.effective_power() + get_wonder_power_bonus(game, i, w)
-                for w in player.wonders if w.color == Card_Color.RED
-            )
-
-    elif people.name == "Judeans":
-        # You have the most total power among blue wonders
-        for i, player in enumerate(game.players):
-            scores[i] = sum(
-                w.effective_power() + get_wonder_power_bonus(game, i, w)
-                for w in player.wonders if w.color == Card_Color.BLUE
-            )
-
-    # Determine winner
     if scores[0] > scores[1] and scores[0] > 0:
         return 0
     elif scores[1] > scores[0] and scores[1] > 0:
         return 1
     else:
-        # Tie or no one qualifies - check Rivers wonder for tie-breaking
+        # Tie or no one qualifies - check for wonders that break ties
         if scores[0] == scores[1] and scores[0] > 0:
             for i, player in enumerate(game.players):
                 for w in player.wonders:
-                    if w.name == "Rivers" and people.effective_power() <= w.effective_power():
+                    if w.wins_tie(game, people):
                         return i
         return None
 
 
-def play_card(game: Game_State, card: Card, ui: any) -> bool:
-    """Play a card from the active player's hand."""
-    player = game.active_player()
+def play_card(state: Game_State, card_id: Card_Id, agent: any):
+    """Play a card from the active player's hand. Accepts int index or Card_Id."""
+    player = state.players[card_id.owner_index]
+    card = state.get_card(card_id)
+    if card_id.area == "hand":
+        del player.hand[card_id.card_index]
 
-    if card not in player.hand:
-        ui.message("Card not in hand!")
-        return False
-
-    player.hand.remove(card)
-
-    # Apply power bonuses/penalties for events
-    original_counters = card.counters
-    if card.card_type == Card_Type.EVENT:
-        bonus = get_event_power_bonus(game, game.current_player, card)
-        penalty = get_event_power_penalty(game, game.current_player, card)
-        net = bonus - penalty
-        # Minimum power of 1 when Sky is in effect
-        if penalty > 0:
-            effective = max(1, card.power + card.counters + net)
-            card.counters = effective - card.power
-        else:
-            card.counters += net
-
-    ui.message(f"{player.name} plays {card.detailed_str()}")
-
-    # Execute effect
-    execute_card_effect(game, card, ui)
-
-    # Reset counters for events
-    card.counters = original_counters
+    agent.message(f"{player.name} plays {card.name}")
 
     if card.card_type == Card_Type.WONDER:
+        card.owner = state.current_player
         player.wonders.append(card)
-        # Trigger Moon effect (draw up to ○ cards)
-        trigger_moon_effect(game, player, ui)
     elif card.card_type == Card_Type.EVENT:
         player.discard.append(card)
+    card.on_played(state, agent)
 
     # Check people conditions after playing
-    check_people_conditions(game, ui)
-
-    return True
+    check_people_conditions(state, agent)
 
 
 def pass_turn(game: Game_State, ui: any) -> bool:
@@ -170,7 +105,8 @@ def pass_turn(game: Game_State, ui: any) -> bool:
     Active player passes and draws a card.
     Returns False if deck is empty (game ends).
     """
-    player = game.active_player()
+    player_id = game.current_player
+    player = game.players[player_id]
 
     # Trigger "on pass" effects before drawing
     trigger_on_pass_effects(game, player, ui)
@@ -181,148 +117,256 @@ def pass_turn(game: Game_State, ui: any) -> bool:
         game.ending_player = game.current_player
         return False
 
-    draw_card(game, player, ui)
-
-    # Check Moon effect after drawing
-    trigger_moon_effect(game, player, ui)
+    draw_card(game, player_id, ui)
 
     # Check people conditions after pass
     check_people_conditions(game, ui)
 
+    # Advance to end phase
+    game.current_phase = "end"
+
     return True
 
 
-def trigger_on_pass_effects(game: Game_State, player: Player, ui: any) -> None:
+def trigger_on_pass_effects(game: Game_State, player: Player, agent: any) -> None:
     """Trigger effects that happen when a player passes."""
-    player_idx = game.players.index(player)
-
     for w in player.wonders:
-        # Knowledge: When you pass, you may play a card with power ○ or less
-        if w.name == "Knowledge":
-            power = w.effective_power()
-            playable = [c for c in player.hand if c.power <= power and c.card_type != Card_Type.PEOPLE]
-            if playable:
-                choice = ui.ask_yes_no(f"Knowledge: Play a card with power {power} or less?")
-                if choice:
-                    selected = ui.select_card(f"Select a card to play (power {power} or less):", playable)
-                    if selected:
-                        play_card(game, selected, ui)
-
-        # Forests: When you pass, you may restore a people with power ○ or less
-        if w.name == "Forests":
-            power = w.effective_power()
-            destroyed = [p for p in game.peoples if p.destroyed and p.effective_power() <= power]
-            if destroyed:
-                choice = ui.ask_yes_no(f"Forests: Restore a people with power {power} or less?")
-                if choice:
-                    selected = ui.select_card("Select a people to restore:", destroyed)
-                    if selected:
-                        selected.destroyed = False
-                        ui.message(f"{selected.name} was restored by Forests!")
-
-        # War: When you pass, you may destroy a people with power ○ or less
-        if w.name == "War":
-            power = w.effective_power()
-            from cards import is_indestructible
-            targets = [p for p in game.peoples
-                      if not p.destroyed and p.effective_power() <= power
-                      and (p.owner is None or not is_indestructible(game, p, p.owner))]
-            if targets:
-                choice = ui.ask_yes_no(f"War: Destroy a people with power {power} or less?")
-                if choice:
-                    selected = ui.select_card("Select a people to destroy:", targets)
-                    if selected:
-                        selected.destroyed = True
-                        ui.message(f"{selected.name} was destroyed by War!")
+        w.on_pass(game, agent)
 
 
-def trigger_moon_effect(game: Game_State, player: Player, ui: any) -> None:
-    """Trigger Moon wonder effect - draw back to ○ cards if below."""
-    for w in player.wonders:
-        if w.name == "Moon":
-            threshold = w.effective_power()
-            while len(player.hand) < threshold and player.deck:
-                card = player.deck.pop()
-                player.hand.append(card)
-                ui.message(f"Moon: {player.name} drew {card.name}.")
-
-
-def trigger_start_of_turn_effects(game: Game_State, ui: any) -> None:
+def trigger_start_of_turn_effects(game: Game_State, agent: any) -> None:
     """Trigger effects at the start of a turn."""
     player = game.active_player()
 
     for w in player.wonders:
-        # Light: At the start of your turn, you may play a card with power ○ or less
-        if w.name == "Light":
-            power = w.effective_power()
-            playable = [c for c in player.hand if c.power <= power and c.card_type != Card_Type.PEOPLE]
-            if playable:
-                choice = ui.ask_yes_no(f"Light: Play a card with power {power} or less?")
-                if choice:
-                    selected = ui.select_card(f"Select a card to play (power {power} or less):", playable)
-                    if selected:
-                        play_card(game, selected, ui)
+        w.on_turn_start(game, agent)
 
+
+def trigger_end_of_turn_effects(game: Game_State, agent: any) -> None:
+    """Trigger effects at the end of a turn."""
+    player = game.active_player()
+
+    for w in player.wonders:
+        w.on_turn_end(game, agent)
+
+def trigger_on_draw(game: Game_State, agent: any) -> None:
+    player = game.active_player()
+    for w in player.wonders:
+        w.on_draw(game, agent)
+
+def wonders_by_priority(state: Game_State) -> list[Card]:
+    active_player = state.active_player()
+    opponent = state.opponent()
+    all_wonders = active_player.wonders + opponent.wonders
+    return all_wonders
+
+def destroy_people(game: Game_State, card_id: Card_Id, agent: any) -> None:
+    people = game.get_card(card_id)
+    # owner_idx = people.owner
+    # if owner_idx is None or not is_indestructible(game, people, owner_idx):
+    people.destroyed = True
+    people.on_destroyed(game, agent)
+    for card in wonders_by_priority(game):
+        card.on_destroy(game, people, agent)
+
+def destroy_wonder(game: Game_State, card_id: Card_Id, agent: any) -> None:
+    card = game.get_card(card_id)
+    assert card.card_type == Card_Type.WONDER, card.card_type
+    owner_idx = card_id.owner_index
+    if owner_idx is not None:
+        player = game.players[owner_idx]
+        player.wonders.remove(card)
+        player.discard.append(card)
+
+    card.on_destroyed(game, agent)
+    for card in wonders_by_priority(game):
+        card.on_destroy(game, card, agent)
+    card.on_destroyed(game, agent)
+
+def restore_people(game: Game_State, card_id: Card_Id, agent: any) -> None:
+    people = game.get_card(card_id)
+    people.destroyed = False
+    # for card in wonders_by_priority(game):
+        # card.on_restore(game, people, agent)
+
+def shuffle_wonder_into_deck(game: Game_State, card_id: Card_Id) -> None:
+    card = game.get_card(card_id)
+    assert card.card_type == Card_Type.WONDER, card.card_type
+    assert card_id.area in ["wonders", "discard"], f"{card_id.area}"
+    assert card_id.owner_index is not None
+    owner_idx = card_id.owner_index
+    if owner_idx is not None:
+        player = game.players[owner_idx]
+        player.wonders.remove(card)
+        card.counters = 0
+        player.deck.append(card)
+        random.shuffle(player.deck)
 
 def declare_end_game(game: Game_State, ui: any) -> None:
     """Active player declares end of game."""
-    player = game.active_player()
-    ui.message(f"{player.name} declares the end of the game!")
+    # ui.message(f"{game.active_player().name} declares the end of the game!")
     game.game_ending = True
     game.ending_player = game.current_player
+    # Advance to end phase
+    game.current_phase = "end"
+
+
+def compute_player_score(game: Game_State, player_index: int) -> int:
+    """Compute the total score for a player."""
+    score = 0
+    player = game.players[player_index]
+
+    # Points from peoples where this player meets the condition
+    for people in game.peoples:
+        points = people.eval_points(game, player_index)
+        if people.destroyed:
+            points = 0
+        for wonder in player.wonders:
+            points = wonder.on_scoring_people(game, people, points)
+        score += points
+    
+    # Points from wonders (Animals, Love)
+    for wonder in player.wonders:
+        score += wonder.on_scoring(game)
+
+    return score
 
 
 def calculate_scores(game: Game_State, ui: any) -> tuple[int, int]:
     """Calculate final scores for both players."""
-    scores = [0, 0]
-
-    for i, player in enumerate(game.players):
-        # Points from controlled people cards
-        for people in game.peoples:
-            if people.owner == i:
-                # Check if destroyed
-                if people.destroyed:
-                    # Check Deserts wonder
-                    can_score = False
-                    for w in player.wonders:
-                        if w.name == "Deserts" and people.effective_power() <= w.effective_power():
-                            can_score = True
-                            break
-                    if can_score:
-                        points = people.effective_power()
-                        scores[i] += points
-                        ui.message(f"{player.name} scores {points} from {people.name} (via Deserts)")
-                else:
-                    points = people.effective_power()
-                    # Check Seas wonder for bonus
-                    for w in player.wonders:
-                        if w.name == "Seas" and people.effective_power() <= w.effective_power():
-                            points += 1
-                            break
-                    scores[i] += points
-                    ui.message(f"{player.name} scores {points} from {people.name}")
-
-        # Points from Animals and Love wonders
-        for w in player.wonders:
-            if w.name == "Animals" or w.name == "Love":
-                points = w.effective_power() + get_wonder_power_bonus(game, i, w)
-                scores[i] += points
-                ui.message(f"{player.name} scores {points} from {w.name}")
-
+    scores = [compute_player_score(game, 0), compute_player_score(game, 1)]
+    ui.message(f"{game.players[0].name} scores {scores[0]} points")
+    ui.message(f"{game.players[1].name} scores {scores[1]} points")
     return scores[0], scores[1]
 
 
-def determine_winner(game: Game_State, scores: tuple[int, int], ui: any) -> Optional[int]:
-    """
-    Determine the winner.
-    Returns 0 or 1 for player index, None for tie (shouldn't happen with tiebreaker).
-    """
-    if scores[0] > scores[1]:
-        return 0
-    elif scores[1] > scores[0]:
-        return 1
-    else:
-        # Tie - the player who triggered the end loses
-        if game.ending_player is not None:
-            return 1 - game.ending_player
-        return None
+# def determine_winner(game: Game_State, scores: tuple[int, int], ui: any) -> Optional[int]:
+#     """
+#     Determine the winner.
+#     Returns 0 or 1 for player index, None for tie (shouldn't happen with tiebreaker).
+#     """
+#     if scores[0] > scores[1]:
+#         return 0
+#     elif scores[1] > scores[0]:
+#         return 1
+#     else:
+#         # Tie - the player who triggered the end loses
+#         if game.ending_player is not None:
+#             return 1 - game.ending_player
+#         return None
+
+
+
+def make_play_choice(state: Game_State) -> Choice:
+    play_choice = Choice()
+    play_choice.player_index = state.current_player
+    selection = []
+    for i, card in enumerate(state.players[state.current_player].hand):
+        card_id = Card_Id(area="hand", card_index=i, owner_index=state.current_player)
+        selection.append(card_id)
+    play_choice.actions = Action_List(
+        type="choose-card",
+        actions=selection
+    )
+    def resolve(state: Game_State, choice: Choice, option_index: int, agent) -> None:
+        card_id = Card_Id(area="hand", card_index=option_index, owner_index=state.current_player)
+        play_card(state, card_id, agent)
+    play_choice.resolve = resolve
+    return play_choice
+
+def perform_main_choice(state: Game_State, agent: any) -> Choice:
+    choice = Choice()
+    choice.player_index = state.current_player
+    player = state.active_player()
+
+    # Build options based on what's available
+    options = []
+    if player.hand:
+        options.append("play")
+    options.append("pass")
+    options.append("end")
+
+    choice.actions = Action_List(
+        type="main",
+        actions=options
+    )
+
+    def resolve(state: Game_State, choice: Choice, option_index: int, agent) -> None:
+        action = choice.actions.actions[option_index]
+        if action == "play":
+            play_choice = make_play_choice(state)
+            agent.perform_action(state, play_choice)
+        elif action == "pass":
+            pass_turn(state, agent)
+        elif action == "end":
+            declare_end_game(state, agent)
+    choice.resolve = resolve
+
+    agent.perform_action(state, choice)
+    return choice
+
+def detailed_str(card: Card) -> str:
+    counters_str = f" (+{card.counters})" if card.counters > 0 else (f" ({card.counters})" if card.counters < 0 else "")
+    return f"{card.name} [{card.color.value} {card.card_type.value}, power {card.power}{counters_str}] - {card.effect}"
+
+def display_game_state(game: Game_State, current_player_view: bool = True) -> None:
+    """Display the current game state."""
+    print("\n" + "=" * 60)
+    print("GAME STATE")
+    print("=" * 60)
+
+    # People cards
+    print("\n--- PEOPLE CARDS (Center) ---")
+    for people in game.peoples:
+        owner_str = f" - Controlled by {game.players[people.owner].name}" if people.owner is not None else " - Unclaimed"
+        status_str = " [DESTROYED]" if people.destroyed else ""
+        effect_text = people.effect
+        print(f"  {people}{status_str}{owner_str}")
+        print(f"    Effect: {effect_text}")
+
+    # Both players' info
+    for i, player in enumerate(game.players):
+        is_current = (i == game.current_player)
+        marker = " <<< CURRENT TURN" if is_current else ""
+        print(f"\n--- {player.name}{marker} ---")
+        print(f"  Deck: {len(player.deck)} cards | Discard: {len(player.discard)} cards")
+
+        if player.wonders:
+            print(f"  Wonders in play:")
+            for w in player.wonders:
+                print(f"    - {detailed_str(w)}")
+        else:
+            print(f"  Wonders in play: None")
+
+        # Show hand for current player (or both in hot-seat mode)
+        print(f"  Hand ({len(player.hand)} cards):")
+        for card in player.hand:
+            print(f"    - {detailed_str(card)}")
+        print("  points:", compute_player_score(game, i))
+    print("\n" + "=" * 60)
+
+def game_loop(game: Game_State, agent: any, display = display_game_state) -> None:
+    while not game.game_over:
+
+        if game.current_phase == "start":
+            # display_game_state(game)
+            trigger_start_of_turn_effects(game, agent)
+            game.current_phase = "main"
+            continue
+        if game.current_phase == "main":
+            if display is not None:
+                display(game)
+            perform_main_choice(game, agent)
+            game.current_phase = "end"
+            continue
+        if game.current_phase == "end":
+            trigger_end_of_turn_effects(game, agent)
+            game.switch_turn()
+            game.current_phase = "start"
+            continue
+    
+    if display is not None:
+        display(game)
+    agent.message("Game ended!")
+    agent.message(f"Player 1: {compute_player_score(game, 0)}")
+    agent.message(f"Player 2: {compute_player_score(game, 1)}")

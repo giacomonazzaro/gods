@@ -1,15 +1,15 @@
 tweak = {
     # Window settings
-    "window_width": 1400,
-    "window_height": 900,
+    "window_width": 1600,
+    "window_height": 1000,
     "window_title": "Gods",
     "target_fps": 60,
     "background_color": (40, 44, 52, 255),
 
     # Card dimensions
-    "card_width": 100,
-    "card_height": 140,
-    "card_corner_radius": 8,
+    "card_width": 150,
+    "card_height": 211,
+    "card_corner_radius": 18,
     "card_padding": 6,
 
     # Card colors
@@ -26,7 +26,7 @@ tweak = {
     "power_font_size": 24,
 
     # Stack spread (how much cards offset from each other)
-    "hand_spread_x": 70,
+    "hand_spread_x": 160,
     "pile_spread_y": 2,  # Small offset for stacked piles
     "wonders_spread_x": 110,
 
