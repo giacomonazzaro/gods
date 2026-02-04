@@ -5,7 +5,7 @@ from typing import Optional
 from gods.models import Action_List, Card, Card_Id, Card_Type, Choice, Player, Game_State, effective_power
 
 
-def draw_card(game: Game_State, player_id: int, agent: any, replacement_effects=True) -> Optional[Card]:
+def draw_card(game: Game_State, player_id: int, agent: any, replacement_effects=True):
     """Draw a card from the player's deck."""
     player = game.players[player_id]
     if len(player.deck) == 0:
@@ -16,7 +16,10 @@ def draw_card(game: Game_State, player_id: int, agent: any, replacement_effects=
             replaced = w.on_draw_replacement(game, agent)
             if replaced:
                 return
-
+    
+    if len(player.deck) == 0:
+        return
+    
     for w in player.wonders:
         card_drawn = w.on_draw(game, agent)
         if card_drawn is not None:
