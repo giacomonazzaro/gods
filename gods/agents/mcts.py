@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from gods.models import Game_State, Choice
 from gods.agents.randomized import Agent_Random
-from gods.game import compute_player_score, game_loop
+from gods.game import compute_player_score, game_loop, get_next_choice
 import copy
 import math
 import random
@@ -53,17 +53,15 @@ class Agent_MCTS:
         best_child_index = max(node.children, key=lambda c: self.tree[c].visits)
         return self.tree[best_child_index].action_index
 
-    def perform_action(self, state: Game_State, choice: Choice):
+    def perform_action(self, state: Game_State, choice: Choice) -> int:
         action_list = choice.actions
         if len(action_list.actions) == 0:
-            return
+            return 0
         if len(action_list.actions) == 1:
-            choice.resolve(state, choice, 0, self)
             return 0
 
         self.player_index = choice.player_index
         selected = self.mcts_search(state, choice)
-        choice.resolve(state, choice, selected, self)
         return selected
 
     def mcts_search(self, state: Game_State, choice: Choice) -> int:
@@ -86,8 +84,8 @@ class Agent_MCTS:
             while node.untried_actions == [] and node.children:
                 node_index = self.best_child(node_index)
                 node = self.tree[node_index]
-                sim_choice.resolve(sim_state, sim_choice, node.action_index, self.random_agent)
-                sim_choice = self.get_next_choice(sim_state)
+                sim_choice.resolve(sim_state, sim_choice, node.action_index)
+                sim_choice = get_next_choice(sim_state)
                 if sim_choice is None:
                     break
 
@@ -99,9 +97,9 @@ class Agent_MCTS:
                 node.children.append(child_index)
                 node_index = child_index
                 node = self.tree[node_index]
-                sim_choice.resolve(sim_state, sim_choice, action, self.random_agent)
+                sim_choice.resolve(sim_state, sim_choice, action)
                 # initialize child's untried actions for the next choice
-                sim_choice = self.get_next_choice(sim_state)
+                sim_choice = get_next_choice(sim_state)
                 if sim_choice is not None:
                     node.untried_actions = list(range(len(sim_choice.actions.actions)))
 
@@ -122,11 +120,6 @@ class Agent_MCTS:
             print("child:", choice.actions.actions[child.action_index], child.visits, child.wins/child.visits)
 
         return self.best_action(root)
-
-    def get_next_choice(self, state: Game_State) -> Choice:
-        if state.choices:
-            return state.choices[-1]
-        return None
 
     def simulate(self, state: Game_State) -> float:
         # play random moves until game ends using the actual game loop

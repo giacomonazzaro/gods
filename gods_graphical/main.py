@@ -172,9 +172,10 @@ init_window(
 set_target_fps(tweak["target_fps"])
 
 from gods_graphical.agent_ui import Agent_UI
+from gods.agents.minimax import Agent_Minimax
 agent_ui = Agent_UI(table_state)
 agent_mcts = Agent_MCTS()
-agent = Agent_Duel(agent_ui, agent_mcts)
+agent = Agent_Duel(agent_ui, agent_ui)
 
 import threading
 

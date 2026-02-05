@@ -29,17 +29,17 @@ class Card:
     owner: Optional[int] = None  # player index who controls this card (for people)
     id: int = -1
 
-    def on_draw(self, game, agent): pass
-    def on_draw_replacement(self, game, agent): return False
-    def on_played(self, game, agent): pass
-    def on_destroyed(self, game, agent): pass
-    def on_play(self, game, card_played, agent): pass
-    def on_destroy(self, game, card_destroyed, agent): pass
-    def on_restore(self, game, card_destroyed, agent): pass
-    def on_discard(self, game, card_discarded: List[Card], agent): pass
-    def on_pass(self, game, agent): pass
-    def on_turn_end(self, game, agent): pass
-    def on_turn_start(self, game, agent): pass
+    def on_draw(self, game): pass
+    def on_draw_replacement(self, game): return False
+    def on_played(self, game): pass
+    def on_destroyed(self, game): pass
+    def on_play(self, game, card_played): pass
+    def on_destroy(self, game, card_destroyed): pass
+    def on_restore(self, game, card_destroyed): pass
+    def on_discard(self, game, card_discarded: List[Card]): pass
+    def on_pass(self, game): pass
+    def on_turn_end(self, game): pass
+    def on_turn_start(self, game): pass
     def power_modifier(self, game: Game_State, card: Card, power: int) -> int:
         """Modify another card's power. Override in subclasses."""
         return power
@@ -77,7 +77,8 @@ class Action_List:
 class Choice:
     player_index: int = 0
     actions: Action_List = Action_List()
-    resolve: Callable[[Game_State, Choice, int, any], None] = None  # last arg is agent
+    resolve: Callable[[Game_State, Choice, int], None] = None
+    generate_actions: Callable[[Game_State, Choice], None] = None
     
 
 @dataclass

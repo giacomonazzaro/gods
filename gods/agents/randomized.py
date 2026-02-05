@@ -8,14 +8,11 @@ class Agent_Random:
     def message(self, msg: str):
         pass  # Silent agent
 
-    def perform_action(self, state: Game_State, choice: Choice):
+    def perform_action(self, state: Game_State, choice: Choice) -> int:
         action_list = choice.actions
         if len(action_list.actions) == 0:
-            return
+            return 0
         if len(action_list.actions) == 1:
-            choice.resolve(state, choice, 0, self)
-            return
+            return 0
 
-        selected = random.randint(0, len(action_list.actions) - 1)
-        choice.resolve(state, choice, selected, self)
-        return selected
+        return random.randint(0, len(action_list.actions) - 1)

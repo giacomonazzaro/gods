@@ -56,13 +56,12 @@ class Agent_UI(Agent):
     def message(self, msg: str):
         pass
 
-    def perform_action(self, state: Game_State, choice: Choice):
+    def perform_action(self, state: Game_State, choice: Choice) -> int:
         action_list = choice.actions
         if len(action_list.actions) == 0:
-            return
+            return 0
         elif len(action_list.actions) == 1:
-            choice.resolve(state, choice, 0, self)
-            return
+            return 0
 
         mx, my = get_mouse_x(), get_mouse_y()
         click = is_mouse_button_pressed(MouseButton.MOUSE_BUTTON_LEFT)
@@ -95,7 +94,8 @@ class Agent_UI(Agent):
             self.buttons = []
             for i, card_id in enumerate(action_list.actions):
                 if Card_Id.is_null(card_id):
-                    button = Button(i * 100, i * 100, 30, 30)
+                    x = start_x
+                    button = Button(x, button_y, button_w, button_h, text="Done")
                     self.buttons.append(button)
                 else:
                     card = state.get_card(card_id)
@@ -147,8 +147,6 @@ class Agent_UI(Agent):
         #     except ValueError:
         #         pass
 
-        if selected in range(len(action_list.actions)):
-            choice.resolve(state, choice, selected, self)
         update_stacks(self.table_state, state)
         self.highlighted_cards = []
         self.buttons = []

@@ -5,7 +5,7 @@ from typing import Optional
 from gods.models import Action_List, Card, Card_Id, Card_Type, Choice, Player, Game_State, effective_power
 
 
-def draw_card(game: Game_State, player_id: int, agent: any, replacement_effects=True):
+def draw_card(game: Game_State, player_id: int, replacement_effects=True):
     """Draw a card from the player's deck."""
     player = game.players[player_id]
     if len(player.deck) == 0:
@@ -13,53 +13,51 @@ def draw_card(game: Game_State, player_id: int, agent: any, replacement_effects=
 
     if replacement_effects:
         for w in player.wonders:
-            replaced = w.on_draw_replacement(game, agent)
-            if replaced:
+            choice = w.on_draw_replacement(game)
+            if choice:
+                game.choices.append(choice)
                 return
-    
+
     if len(player.deck) == 0:
         return
-    
+
     for w in player.wonders:
-        card_drawn = w.on_draw(game, agent)
-        if card_drawn is not None:
-            return card_drawn
-        
+        choice = w.on_draw(game)
+        if choice is not None:
+            game.choices.append(choice)
+            return
+
     card = player.deck.pop()
     player.hand.append(card)
     return card
 
 
-def discard_card(game: Game_State, card_id: Card_Id, agent: any):
-    """Draw a card from the player's deck."""
+def discard_card(game: Game_State, card_id: Card_Id):
+    """Discard a card from a player's hand."""
     player_id = card_id.owner_index
     player = game.players[player_id]
     assert card_id.area == "hand"
-    
+
     card = game.get_card(card_id)
     for w in player.wonders:
-        w.on_discard(game, card, agent)
-        
+        w.on_discard(game, card)
+
     del player.hand[card_id.card_index]
     player.discard.append(card)
 
 
 
-def check_people_conditions(game: Game_State, ui: any) -> None:
+def check_people_conditions(game: Game_State) -> None:
     """Check and update ownership of people cards based on their conditions."""
     for people in game.peoples:
         old_owner = people.owner
-        new_owner = evaluate_people_condition(game, people, ui)
+        new_owner = evaluate_people_condition(game, people)
 
         if new_owner != old_owner:
-            # if new_owner is not None:
-            #     print(f"{game.players[new_owner].name} now controls {people.name}!")
-            # elif old_owner is not None:
-            #     print(f"{people.name} is no longer controlled by anyone!")
             people.owner = new_owner
 
 
-def evaluate_people_condition(game: Game_State, people: Card, ui: any) -> Optional[int]:
+def evaluate_people_condition(game: Game_State, people: Card) -> Optional[int]:
     """
     Evaluate who should control a people card.
     Returns player index (0 or 1) or None if tied/no one qualifies.
@@ -83,79 +81,22 @@ def evaluate_people_condition(game: Game_State, people: Card, ui: any) -> Option
         return None
 
 
-def play_card(state: Game_State, card_id: Card_Id, agent: any):
-    """Play a card from the active player's hand. Accepts int index or Card_Id."""
+def play_card(state: Game_State, card_id: Card_Id):
+    """Play a card from a player's hand."""
     player = state.players[card_id.owner_index]
     card = state.get_card(card_id)
     if card_id.area == "hand":
         del player.hand[card_id.card_index]
-
-    agent.message(f"{player.name} plays {card.name}")
 
     if card.card_type == Card_Type.WONDER:
         card.owner = state.current_player
         player.wonders.append(card)
     elif card.card_type == Card_Type.EVENT:
         player.discard.append(card)
-    card.on_played(state, agent)
+    choice = card.on_played(state)
+    if choice is not None:
+        state.choices.append(choice)
 
-    # Check people conditions after playing
-    check_people_conditions(state, agent)
-
-
-def pass_turn(game: Game_State, ui: any) -> bool:
-    """
-    Active player passes and draws a card.
-    Returns False if deck is empty (game ends).
-    """
-    player_id = game.current_player
-    player = game.players[player_id]
-
-    # Trigger "on pass" effects before drawing
-    trigger_on_pass_effects(game, player, ui)
-
-    if not player.deck:
-        ui.message(f"{player.name}'s deck is empty! Game ends immediately!")
-        game.game_over = True
-        game.ending_player = game.current_player
-        return False
-
-    draw_card(game, player_id, ui)
-
-    # Check people conditions after pass
-    check_people_conditions(game, ui)
-
-    # Advance to end phase
-    game.current_phase = "end"
-
-    return True
-
-
-def trigger_on_pass_effects(game: Game_State, player: Player, agent: any) -> None:
-    """Trigger effects that happen when a player passes."""
-    for w in player.wonders:
-        w.on_pass(game, agent)
-
-
-def trigger_start_of_turn_effects(game: Game_State, agent: any) -> None:
-    """Trigger effects at the start of a turn."""
-    player = game.active_player()
-
-    for w in player.wonders:
-        w.on_turn_start(game, agent)
-
-
-def trigger_end_of_turn_effects(game: Game_State, agent: any) -> None:
-    """Trigger effects at the end of a turn."""
-    player = game.active_player()
-
-    for w in player.wonders:
-        w.on_turn_end(game, agent)
-
-def trigger_on_draw(game: Game_State, agent: any) -> None:
-    player = game.active_player()
-    for w in player.wonders:
-        w.on_draw(game, agent)
 
 def wonders_by_priority(state: Game_State) -> list[Card]:
     active_player = state.active_player()
@@ -163,16 +104,14 @@ def wonders_by_priority(state: Game_State) -> list[Card]:
     all_wonders = active_player.wonders + opponent.wonders
     return all_wonders
 
-def destroy_people(game: Game_State, card_id: Card_Id, agent: any) -> None:
+def destroy_people(game: Game_State, card_id: Card_Id) -> None:
     people = game.get_card(card_id)
-    # owner_idx = people.owner
-    # if owner_idx is None or not is_indestructible(game, people, owner_idx):
     people.destroyed = True
-    people.on_destroyed(game, agent)
+    people.on_destroyed(game)
     for card in wonders_by_priority(game):
-        card.on_destroy(game, people, agent)
+        card.on_destroy(game, people)
 
-def destroy_wonder(game: Game_State, card_id: Card_Id, agent: any) -> None:
+def destroy_wonder(game: Game_State, card_id: Card_Id) -> None:
     card = game.get_card(card_id)
     assert card.card_type == Card_Type.WONDER, card.card_type
     owner_idx = card_id.owner_index
@@ -181,16 +120,13 @@ def destroy_wonder(game: Game_State, card_id: Card_Id, agent: any) -> None:
         player.wonders.remove(card)
         player.discard.append(card)
 
-    card.on_destroyed(game, agent)
-    for card in wonders_by_priority(game):
-        card.on_destroy(game, card, agent)
-    card.on_destroyed(game, agent)
+    card.on_destroyed(game)
+    for w in wonders_by_priority(game):
+        w.on_destroy(game, card)
 
-def restore_people(game: Game_State, card_id: Card_Id, agent: any) -> None:
+def restore_people(game: Game_State, card_id: Card_Id) -> None:
     people = game.get_card(card_id)
     people.destroyed = False
-    # for card in wonders_by_priority(game):
-        # card.on_restore(game, people, agent)
 
 def shuffle_wonder_into_deck(game: Game_State, card_id: Card_Id) -> None:
     card = game.get_card(card_id)
@@ -205,13 +141,10 @@ def shuffle_wonder_into_deck(game: Game_State, card_id: Card_Id) -> None:
         player.deck.append(card)
         random.shuffle(player.deck)
 
-def declare_end_game(game: Game_State, ui: any) -> None:
+def declare_end_game(game: Game_State) -> None:
     """Active player declares end of game."""
-    # ui.message(f"{game.active_player().name} declares the end of the game!")
     game.game_ending = True
     game.ending_player = game.current_player
-    # Advance to end phase
-    game.current_phase = "end"
 
 
 def compute_player_score(game: Game_State, player_index: int) -> int:
@@ -227,37 +160,12 @@ def compute_player_score(game: Game_State, player_index: int) -> int:
         for wonder in player.wonders:
             points = wonder.on_scoring_people(game, people, points)
         score += points
-    
+
     # Points from wonders (Animals, Love)
     for wonder in player.wonders:
         score += wonder.on_scoring(game)
 
     return score
-
-
-def calculate_scores(game: Game_State, ui: any) -> tuple[int, int]:
-    """Calculate final scores for both players."""
-    scores = [compute_player_score(game, 0), compute_player_score(game, 1)]
-    ui.message(f"{game.players[0].name} scores {scores[0]} points")
-    ui.message(f"{game.players[1].name} scores {scores[1]} points")
-    return scores[0], scores[1]
-
-
-# def determine_winner(game: Game_State, scores: tuple[int, int], ui: any) -> Optional[int]:
-#     """
-#     Determine the winner.
-#     Returns 0 or 1 for player index, None for tie (shouldn't happen with tiebreaker).
-#     """
-#     if scores[0] > scores[1]:
-#         return 0
-#     elif scores[1] > scores[0]:
-#         return 1
-#     else:
-#         # Tie - the player who triggered the end loses
-#         if game.ending_player is not None:
-#             return 1 - game.ending_player
-#         return None
-
 
 
 def make_play_choice(state: Game_State) -> Choice:
@@ -271,13 +179,14 @@ def make_play_choice(state: Game_State) -> Choice:
         type="choose-card",
         actions=selection
     )
-    def resolve(state: Game_State, choice: Choice, option_index: int, agent) -> None:
+    def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
         card_id = Card_Id(area="hand", card_index=option_index, owner_index=state.current_player)
-        play_card(state, card_id, agent)
+        play_card(state, card_id)
+        state.current_phase = "post-play"
     play_choice.resolve = resolve
     return play_choice
 
-def perform_main_choice(state: Game_State, agent: any) -> Choice:
+def make_main_choice(state: Game_State) -> Choice:
     choice = Choice()
     choice.player_index = state.current_player
     player = state.active_player()
@@ -294,19 +203,77 @@ def perform_main_choice(state: Game_State, agent: any) -> Choice:
         actions=options
     )
 
-    def resolve(state: Game_State, choice: Choice, option_index: int, agent) -> None:
+    def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
         action = choice.actions.actions[option_index]
         if action == "play":
             play_choice = make_play_choice(state)
-            agent.perform_action(state, play_choice)
+            state.choices.append(play_choice)
         elif action == "pass":
-            pass_turn(state, agent)
+            # Push on_pass choices, then set phase for draw
+            player = state.active_player()
+            for w in player.wonders:
+                c = w.on_pass(state)
+                if c is not None:
+                    state.choices.append(c)
+            state.current_phase = "post-pass-effects"
         elif action == "end":
-            declare_end_game(state, agent)
+            declare_end_game(state)
+            state.current_phase = "end"
     choice.resolve = resolve
-
-    agent.perform_action(state, choice)
     return choice
+
+
+def get_next_choice(state: Game_State) -> Choice:
+    """Advance game state until a choice is produced or the game ends."""
+    while not state.game_over:
+        if state.choices:
+            choice = state.choices.pop(0)
+            if choice.generate_actions:
+                choice.generate_actions(state, choice)
+            if not choice.actions or not choice.actions.actions:
+                continue
+            return choice
+
+        if state.current_phase == "start":
+            for w in state.active_player().wonders:
+                c = w.on_turn_start(state)
+                if c:
+                    state.choices.append(c)
+            state.current_phase = "main"
+
+        elif state.current_phase == "main":
+            state.choices.append(make_main_choice(state))
+
+        elif state.current_phase == "post-play":
+            check_people_conditions(state)
+            state.current_phase = "end"
+
+        elif state.current_phase == "post-pass-effects":
+            # on_pass choices already resolved, now draw
+            player = state.active_player()
+            if not player.deck:
+                state.game_over = True
+                state.ending_player = state.current_player
+                continue
+            draw_card(state, state.current_player)
+            check_people_conditions(state)
+            state.current_phase = "post-pass-draw"
+
+        elif state.current_phase == "post-pass-draw":
+            # draw choices resolved
+            check_people_conditions(state)
+            state.current_phase = "end"
+
+        elif state.current_phase == "end":
+            for w in state.active_player().wonders:
+                c = w.on_turn_end(state)
+                if c:
+                    state.choices.append(c)
+            state.switch_turn()
+            state.current_phase = "start"
+
+    return None
+
 
 def detailed_str(card: Card) -> str:
     counters_str = f" (+{card.counters})" if card.counters > 0 else (f" ({card.counters})" if card.counters < 0 else "")
@@ -348,28 +315,18 @@ def display_game_state(game: Game_State, current_player_view: bool = True) -> No
         print("  points:", compute_player_score(game, i))
     print("\n" + "=" * 60)
 
-def game_loop(game: Game_State, agent: any, display = display_game_state) -> None:
+def game_loop(game: Game_State, agent: any, display = display_game_state):
     while not game.game_over:
+        choice = get_next_choice(game)
+        if choice is None:
+            break
+        if display is not None and choice.actions.type == "main":
+            display(game)
+        index = agent.perform_action(game, choice)
+        choice.resolve(game, choice, index)
 
-        if game.current_phase == "start":
-            # display_game_state(game)
-            trigger_start_of_turn_effects(game, agent)
-            game.current_phase = "main"
-            continue
-        if game.current_phase == "main":
-            if display is not None:
-                display(game)
-            perform_main_choice(game, agent)
-            game.current_phase = "end"
-            continue
-        if game.current_phase == "end":
-            trigger_end_of_turn_effects(game, agent)
-            game.switch_turn()
-            game.current_phase = "start"
-            continue
-    
     if display is not None:
         display(game)
-    agent.message("Game ended!")
-    agent.message(f"Player 1: {compute_player_score(game, 0)}")
-    agent.message(f"Player 2: {compute_player_score(game, 1)}")
+    print("Game ended!")
+    print(f"Player 1: {compute_player_score(game, 0)}")
+    print(f"Player 2: {compute_player_score(game, 1)}")

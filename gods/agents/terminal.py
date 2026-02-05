@@ -7,14 +7,13 @@ class Agent_Terminal:
     def message(self, msg: str):
         print("Terminal Agent:", msg)
 
-    def perform_action(self, state: Game_State, choice: Choice):
+    def perform_action(self, state: Game_State, choice: Choice) -> int:
         player = state.players[choice.player_index]
         action_list = choice.actions
         if len(action_list.actions) == 0:
-            return
+            return 0
         elif len(action_list.actions) == 1:
-            choice.resolve(state, choice, 0, self)
-            return
+            return 0
 
         print(f"\n{player.name}, choose an action:")
 
@@ -53,5 +52,4 @@ class Agent_Terminal:
             except ValueError:
                 pass
 
-        choice.resolve(state, choice, selected, self)
         return selected

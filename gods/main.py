@@ -10,7 +10,7 @@ from gods.agents.duel import Agent_Duel
 
 # from gods.cards import get_playable_cards, get_people_cards
 from gods.game import (
-    create_game, game_loop, check_people_conditions,
+    game_loop, check_people_conditions,
     display_game_state, compute_player_score, detailed_str
 )
 from gods.setup import *
@@ -121,7 +121,7 @@ def main():
     print("\nGame started! Each player has drawn 5 cards.")
 
     # Initial people condition check
-    check_people_conditions(game, None)
+    check_people_conditions(game)
 
     agent = Agent_Duel(Agent_Terminal(), Agent_MCTS())
     game_loop(game, agent)
