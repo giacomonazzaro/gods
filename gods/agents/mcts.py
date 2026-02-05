@@ -24,7 +24,7 @@ class Agent_MCTS:
         self.exploration = exploration
         self.time_limit = time_limit  # max seconds for search
         self.random_agent = Agent_Random()
-        self.player_index = None  # set during perform_action
+        self.player_index = None  # set during choose_action
         self.tree: list[MCTS_Node] = []  # nodes stored by index
 
     def message(self, msg: str):
@@ -53,7 +53,7 @@ class Agent_MCTS:
         best_child_index = max(node.children, key=lambda c: self.tree[c].visits)
         return self.tree[best_child_index].action_index
 
-    def perform_action(self, state: Game_State, choice: Choice) -> int:
+    def choose_action(self, state: Game_State, choice: Choice) -> int:
         action_list = choice.actions
         if len(action_list.actions) == 0:
             return 0

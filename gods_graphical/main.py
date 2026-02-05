@@ -175,7 +175,8 @@ from gods_graphical.agent_ui import Agent_UI
 from gods.agents.minimax import Agent_Minimax
 agent_ui = Agent_UI(table_state)
 agent_mcts = Agent_MCTS()
-agent = Agent_Duel(agent_ui, agent_ui)
+agent_minimax = Agent_Minimax()
+agent = Agent_Duel(agent_ui, agent_minimax)
 
 import threading
 
@@ -211,7 +212,7 @@ while not window_should_close():
             card = gods_state.get_card(card_id)
         except:
             continue
-        kt_card = table_state.cards[card.id]
+        kt_card = table_state.animated_cards[card.id]
         w = tweak["card_width"]
         h = tweak["card_height"]
         draw_rectangle_rounded_lines_ex(

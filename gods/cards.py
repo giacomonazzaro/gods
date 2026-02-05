@@ -811,6 +811,7 @@ class Stars(Card):
                 player = state.players[player_id]
                 card = state.shared_deck.pop()
                 card.power = power
+                card.owner = self.owner
                 player.hand.append(card)
             else:
                 draw_card(state, player_id, replacement_effects=False)

@@ -239,6 +239,7 @@ def get_next_choice(state: Game_State) -> Choice:
                 c = w.on_turn_start(state)
                 if c:
                     state.choices.append(c)
+            
             state.current_phase = "main"
 
         elif state.current_phase == "main":
@@ -322,7 +323,7 @@ def game_loop(game: Game_State, agent: any, display = display_game_state):
             break
         if display is not None and choice.actions.type == "main":
             display(game)
-        index = agent.perform_action(game, choice)
+        index = agent.choose_action(game, choice)
         choice.resolve(game, choice, index)
 
     if display is not None:

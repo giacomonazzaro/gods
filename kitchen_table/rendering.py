@@ -271,14 +271,11 @@ def animate(cards, state, dt: float = 0.1) -> None:
         cards[selected_card_id].y = state.cards[selected_card_id].y
 
 from copy import deepcopy
-animated_cards = None  # Global variable to hold current state for drawing
-
 def draw_table(table_state: Table_State) -> None:
-    global animated_cards
-    if animated_cards is None:
-        animated_cards = deepcopy(table_state.cards)
+    if table_state.animated_cards is None:
+        table_state.animated_cards = deepcopy(table_state.cards)
 
-    animate(animated_cards, table_state)
+    animate(table_state.animated_cards, table_state)
 
     drag = table_state.drag_state
 
@@ -291,18 +288,18 @@ def draw_table(table_state: Table_State) -> None:
     for stack in table_state.stacks:
         for card_id in stack.cards:
             if card_id == drag.card_id: continue
-            card = animated_cards[card_id]
+            card = table_state.animated_cards[card_id]
             draw_card(card, face_up=stack.face_up)
 
     # Draw loose cards (excluding dragged card)
     for card_id in table_state.loose_cards:
         if card_id == drag.card_id: continue
-        card = animated_cards[card_id]
+        card = table_state.animated_cards[card_id]
         draw_card(card, face_up=True)
 
     # Draw dragged card on top
     if drag.card_id >= 0:
-        card = animated_cards[drag.card_id]
+        card = table_state.animated_cards[drag.card_id]
         draw_card(card, face_up=True)
 
     if table_state.draw_callback is not None:

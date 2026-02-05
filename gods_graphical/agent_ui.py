@@ -56,7 +56,7 @@ class Agent_UI(Agent):
     def message(self, msg: str):
         pass
 
-    def perform_action(self, state: Game_State, choice: Choice) -> int:
+    def choose_action(self, state: Game_State, choice: Choice) -> int:
         action_list = choice.actions
         if len(action_list.actions) == 0:
             return 0
@@ -99,7 +99,7 @@ class Agent_UI(Agent):
                     self.buttons.append(button)
                 else:
                     card = state.get_card(card_id)
-                    kt_card = self.table_state.cards[card.id]
+                    kt_card = self.table_state.animated_cards[card.id]
                     self.highlighted_cards.append(card_id)
         
         selected = -1

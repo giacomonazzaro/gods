@@ -38,4 +38,5 @@ class Table_State:
     loose_cards: list[int] = field(default_factory=list)  # Card indices not in any stack
     drag_state: Drag_State = field(default_factory=Drag_State)
 
+    animated_cards: list[Card] = None
     draw_callback: callable | None = None

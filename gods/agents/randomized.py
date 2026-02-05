@@ -8,7 +8,7 @@ class Agent_Random:
     def message(self, msg: str):
         pass  # Silent agent
 
-    def perform_action(self, state: Game_State, choice: Choice) -> int:
+    def choose_action(self, state: Game_State, choice: Choice) -> int:
         action_list = choice.actions
         if len(action_list.actions) == 0:
             return 0
