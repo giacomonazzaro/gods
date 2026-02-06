@@ -73,7 +73,7 @@ class Agent_UI(Agent):
         gap = 20
         total_width = count * button_w + (count - 1) * gap
         start_x = (tweak["window_width"] - total_width) // 2
-        button_y = tweak["window_height"] - 80
+        button_y = tweak["window_height"] - 50
 
         if action_list.type == "main":
             self.buttons = []

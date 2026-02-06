@@ -114,7 +114,7 @@ def init_table_state(gods_state: Game_State) -> kt.Table_State:
 
     # Player 2 areas (top)
     add_cards_from_list(gods_state.players[1].deck, deck_x, p2_deck_y, spread_y=spread_pile, face_up=False)
-    add_cards_from_list(gods_state.players[1].hand, hand_x, p2_hand_y, spread_x=spread_hand)
+    add_cards_from_list(gods_state.players[1].hand, hand_x, p2_hand_y, spread_x=spread_hand, face_up=False)
     add_cards_from_list(gods_state.players[1].discard, discard_x, p2_deck_y, spread_y=spread_pile)
     add_cards_from_list(gods_state.players[1].wonders, wonders_x, p2_wonders_y, spread_x=spread_wonders)
 
