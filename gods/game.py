@@ -21,14 +21,15 @@ def draw_card(game: Game_State, player_id: int, replacement_effects=True):
     if len(player.deck) == 0:
         return
 
+    card = player.deck.pop()
+    player.hand.append(card)
+
     for w in player.wonders:
         choice = w.on_draw(game)
         if choice is not None:
             game.choices.append(choice)
             return
 
-    card = player.deck.pop()
-    player.hand.append(card)
     return card
 
 
@@ -39,11 +40,11 @@ def discard_card(game: Game_State, card_id: Card_Id):
     assert card_id.area == "hand"
 
     card = game.get_card(card_id)
-    for w in player.wonders:
-        w.on_discard(game, card)
-
     del player.hand[card_id.card_index]
     player.discard.append(card)
+    
+    for w in player.wonders:
+        w.on_discard(game, card)
 
 
 
@@ -67,17 +68,18 @@ def evaluate_people_condition(game: Game_State, people: Card) -> Optional[int]:
         people.eval_points(game, 1)
     ]
 
-    if scores[0] > scores[1] and scores[0] > 0:
+    if scores[0] > scores[1]:
         return 0
-    elif scores[1] > scores[0] and scores[1] > 0:
+    elif scores[1] > scores[0]:
         return 1
     else:
         # Tie or no one qualifies - check for wonders that break ties
-        if scores[0] == scores[1] and scores[0] > 0:
+        if scores[0] == scores[1]:
             for i, player in enumerate(game.players):
                 for w in player.wonders:
                     if w.wins_tie(game, people):
                         return i
+            return people.owner
         return None
 
 

@@ -98,7 +98,7 @@ def minimax(
         return evaluate(state, ctx.player_index)
 
     maximizing = choice.player_index == ctx.player_index
-    next_depth = depth - 1 if not maximizing else depth
+    next_depth = depth - 1
     if next_depth < 0:
         return evaluate_heuristic(state, ctx.player_index)
 
