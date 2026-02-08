@@ -261,9 +261,12 @@ def draw_stack_placeholder(stack: Stack, label: str) -> None:
 def animate(cards, state, dt: float = 0.1) -> None:
     # Interpolate card positions
     for r_card, t_card in zip(cards, state.cards):
+        old_pos_x = r_card.x
         r_card.x = r_card.x * (1 - dt) + t_card.x * dt
         r_card.y = r_card.y * (1 - dt) + t_card.y * dt
+        v_x = r_card.x - old_pos_x
         r_card.rotation = r_card.rotation * (1 - dt) + t_card.rotation * dt
+        r_card.rotation += v_x * 0.2
 
     selected_card_id = state.drag_state.card_id
     if selected_card_id >= 0:
