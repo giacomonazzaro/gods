@@ -25,6 +25,7 @@ def check_time(ctx: Search_Context) -> None:
 def minimax_search(
     state: Game_State,
     choice: Choice,
+    actions: list,
     max_depth: int,
     ctx: Search_Context,
 ) -> list[float]:
@@ -32,7 +33,7 @@ def minimax_search(
 
     Returns scores where scores[i] is the score for action i.
     """
-    num_actions = len(choice.actions.actions)
+    num_actions = len(actions)
     action_order = list(range(num_actions))
     scores: list[float] = [-float("inf")] * num_actions
 
@@ -40,7 +41,7 @@ def minimax_search(
         if ctx.time_up:
             break
         ctx.nodes_searched = 0
-        depth_scores = minimax_root(state, choice, depth, action_order, ctx)
+        depth_scores = minimax_root(state, choice, actions, depth, action_order, ctx)
         if not ctx.time_up:
             scores = depth_scores
             action_order.sort(key=lambda a: depth_scores[a], reverse=True)
@@ -53,12 +54,13 @@ def minimax_search(
 def minimax_root(
     state: Game_State,
     choice: Choice,
+    actions: list,
     depth: int,
     action_order: list[int],
     ctx: Search_Context,
 ) -> list[float]:
     """Try every action at the root and return scores."""
-    num_actions = len(choice.actions.actions)
+    num_actions = len(actions)
     alpha = -float("inf")
     beta = float("inf")
     scores: list[float] = [-float("inf")] * num_actions
@@ -68,8 +70,8 @@ def minimax_root(
             break
         sim = copy.deepcopy(state)
         sim_choice = copy.deepcopy(choice)
-        sim_choice.resolve(sim, sim_choice, action)
-        score = minimax(sim, depth, alpha, beta, ctx)
+        new_choices = sim_choice.resolve(sim, sim_choice, action) or []
+        score = minimax(sim, list(new_choices), depth, alpha, beta, ctx)
         scores[action] = score
         alpha = max(alpha, score)
 
@@ -78,6 +80,7 @@ def minimax_root(
 
 def minimax(
     state: Game_State,
+    pending_choices: list[Choice],
     depth: int,
     alpha: float,
     beta: float,
@@ -93,26 +96,28 @@ def minimax(
     if state.game_over:
         return evaluate(state, ctx.player_index)
 
-    choice = get_next_choice(state)
+    choice = get_next_choice(state, pending_choices)
     if choice is None:
         return evaluate(state, ctx.player_index)
 
+    actions = choice.generate_actions(state, choice)
     maximizing = choice.player_index == ctx.player_index
     next_depth = depth - 1
     if next_depth < 0:
         return evaluate_heuristic(state, ctx.player_index)
 
-    actions = list(range(len(choice.actions.actions)))
     if not actions:
         return evaluate_heuristic(state, ctx.player_index)
 
     if maximizing:
         value = -float("inf")
-        for action in actions:
+        for action in range(len(actions)):
             sim = copy.deepcopy(state)
+            sim_pending = list(pending_choices)
             sim_choice = copy.deepcopy(choice)
-            sim_choice.resolve(sim, sim_choice, action)
-            score = minimax(sim, next_depth, alpha, beta, ctx)
+            new_choices = sim_choice.resolve(sim, sim_choice, action) or []
+            sim_pending = list(new_choices) + sim_pending
+            score = minimax(sim, sim_pending, next_depth, alpha, beta, ctx)
             value = max(value, score)
             alpha = max(alpha, value)
             if alpha >= beta:
@@ -120,11 +125,13 @@ def minimax(
         return value
     else:
         value = float("inf")
-        for action in actions:
+        for action in range(len(actions)):
             sim = copy.deepcopy(state)
+            sim_pending = list(pending_choices)
             sim_choice = copy.deepcopy(choice)
-            sim_choice.resolve(sim, sim_choice, action)
-            score = minimax(sim, next_depth, alpha, beta, ctx)
+            new_choices = sim_choice.resolve(sim, sim_choice, action) or []
+            sim_pending = list(new_choices) + sim_pending
+            score = minimax(sim, sim_pending, next_depth, alpha, beta, ctx)
             value = min(value, score)
             beta = min(beta, value)
             if alpha >= beta:
@@ -170,4 +177,3 @@ def evaluate(state: Game_State, player_index: int) -> float:
 
     score += evaluate_heuristic(state, player_index)
     return score
-

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
-from gods.models import Action_List, Card, Card_Id, Card_Type, Card_Color, Game_State, effective_power, Choice
+from gods.models import Card, Card_Id, Card_Type, Card_Color, Game_State, effective_power, Choice
 from gods.game import *
 
 def create_card(data: dict, default_power: int = 3) -> Card:
@@ -60,18 +60,18 @@ class Light(Card):
     def on_game_end(self, game):
         choice = Choice()
         choice.player_index = self.owner
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             if not Card_Id.is_null(card_id):
-                play_card(state, card_id)
+                return play_card(state, card_id)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -80,8 +80,10 @@ class Light(Card):
 class Moon(Card):
     def draw_back_up(self, game):
         player = game.players[self.owner]
+        choices = []
         while len(player.hand) <= effective_power(game, self):
-            draw_card(game, self.owner)
+            choices.extend(draw_card(game, self.owner))
+        return choices
 
 @dataclass
 class War(Card):
@@ -101,18 +103,18 @@ class War(Card):
 
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             if not Card_Id.is_null(card_id):
                 destroy_people(state, card_id)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -123,6 +125,7 @@ class Rivers(Card):
     def on_pass(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
             targets = []
@@ -130,16 +133,15 @@ class Rivers(Card):
                 if people.destroyed:
                     targets.append(Card_Id(area="people", card_index=i, owner_index=people.owner))
             targets.append(Card_Id.null())
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=targets
-            )
+            return targets
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             if not Card_Id.is_null(card_id):
                 restore_people(state, card_id)
+            return []
         choice.resolve = resolve
         return choice
 
@@ -168,17 +170,17 @@ class Eruption(Card):
     def on_played(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             shuffle_wonder_into_deck(state, card_id)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -217,21 +219,20 @@ class Miracle(Card):
     def on_played(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
         miracle_card = self
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             card = state.get_card(card_id)
             bonus = effective_power(state, miracle_card)
             card.counters += bonus
-            play_card(state, card_id)
+            return play_card(state, card_id)
 
         choice.resolve = resolve
         return choice
@@ -259,18 +260,18 @@ class Flashback(Card):
 
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
         flashback = self
         def make_resolve(iteration):
-            def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-                card_id = choice.actions.actions[option_index]
+            def resolve(state: Game_State, choice: Choice, option_index: int):
+                actions = choice.generate_actions(state, choice)
+                card_id = actions[option_index]
+                result = []
                 if not Card_Id.is_null(card_id):
                     card = state.get_card(card_id)
                     player = state.players[state.current_player]
@@ -278,7 +279,8 @@ class Flashback(Card):
                     player.hand.append(card)
                     next_choice = flashback._make_nth_choice(state, iteration + 1)
                     if next_choice:
-                        state.choices.append(next_choice)
+                        result.append(next_choice)
+                return result
             return resolve
 
         choice.resolve = make_resolve(n)
@@ -303,23 +305,24 @@ class Prophecy(Card):
             return None
 
         choice = Choice(player_index=self.owner)
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
         prophecy = self
         def make_resolve(iteration):
-            def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-                card_id = choice.actions.actions[option_index]
+            def resolve(state: Game_State, choice: Choice, option_index: int):
+                actions = choice.generate_actions(state, choice)
+                card_id = actions[option_index]
+                result = []
                 if not Card_Id.is_null(card_id):
-                    play_card(state, card_id)
+                    result.extend(play_card(state, card_id))
                     next_choice = prophecy._make_nth_choice(state, iteration + 1)
                     if next_choice:
-                        state.choices.append(next_choice)
+                        result.append(next_choice)
+                return result
             return resolve
 
         choice.resolve = make_resolve(n)
@@ -347,18 +350,18 @@ class Time_Warp(Card):
 
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
         time_warp = self
         def make_resolve(iteration):
-            def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-                card_id = choice.actions.actions[option_index]
+            def resolve(state: Game_State, choice: Choice, option_index: int):
+                actions = choice.generate_actions(state, choice)
+                card_id = actions[option_index]
+                result = []
                 if not Card_Id.is_null(card_id):
                     card = state.get_card(card_id)
                     player = state.players[card_id.owner_index]
@@ -367,7 +370,8 @@ class Time_Warp(Card):
                     player.hand.append(card)
                     next_choice = time_warp._make_nth_choice(state, iteration + 1)
                     if next_choice:
-                        state.choices.append(next_choice)
+                        result.append(next_choice)
+                return result
             return resolve
 
         choice.resolve = make_resolve(n)
@@ -378,9 +382,10 @@ class Time_Warp(Card):
 class Aurora(Card):
     def on_played(self, game):
         power = effective_power(game, self)
+        result = []
         for _ in range(power):
-            draw_card(game, game.current_player)
-        return None
+            result.extend(draw_card(game, game.current_player))
+        return result if result else None
 
 
 @dataclass
@@ -404,22 +409,22 @@ class Darkness(Card):
 
         choice = Choice()
         choice.player_index = 1 - self.owner  # Opponent chooses
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
         darkness = self
         def make_resolve(iteration):
-            def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-                card_id = choice.actions.actions[option_index]
+            def resolve(state: Game_State, choice: Choice, option_index: int):
+                actions = choice.generate_actions(state, choice)
+                card_id = actions[option_index]
                 discard_card(state, card_id)
                 next_choice = darkness._make_nth_choice(state, iteration + 1)
                 if next_choice:
-                    state.choices.append(next_choice)
+                    return [next_choice]
+                return []
             return resolve
 
         choice.resolve = make_resolve(n)
@@ -439,19 +444,19 @@ class Spring(Card):
     def on_played(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
         spring_card = self
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             card = state.get_card(card_id)
             card.counters += effective_power(state, spring_card)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -472,18 +477,18 @@ class Regrowth(Card):
     def on_played(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             people = state.get_card(card_id)
             people.destroyed = False
+            return []
 
         choice.resolve = resolve
         return choice
@@ -512,19 +517,19 @@ class Forgive(Card):
     def on_played(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
         forgive_card = self
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             people = state.get_card(card_id)
             people.counters += effective_power(state, forgive_card)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -546,17 +551,17 @@ class Unmaking(Card):
     def on_played(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             destroy_wonder(state, card_id)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -576,17 +581,17 @@ class Revolt(Card):
     def on_played(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             destroy_people(state, card_id)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -605,19 +610,19 @@ class Blessing(Card):
     def on_played(self, game):
         choice = Choice()
         choice.player_index = game.current_player
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
         blessing_card = self
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             card = state.get_card(card_id)
             card.counters += effective_power(state, blessing_card)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -645,18 +650,18 @@ class Wisdom(Card):
 
         choice = Choice()
         choice.player_index = self.owner
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             if not Card_Id.is_null(card_id):
-                play_card(state, card_id)
+                return play_card(state, card_id)
+            return []
 
         choice.resolve = resolve
         return choice
@@ -714,19 +719,19 @@ class Forests(Card):
 
         choice = Choice()
         choice.player_index = self.owner
+        choice.type = "choose-card"
 
         def generate_actions(state, choice):
-            choice.actions = Action_List(
-                type="choose-card",
-                actions=self.get_card_selection(state)
-            )
+            return self.get_card_selection(state)
         choice.generate_actions = generate_actions
 
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
-            card_id = choice.actions.actions[option_index]
+        def resolve(state: Game_State, choice: Choice, option_index: int):
+            actions = choice.generate_actions(state, choice)
+            card_id = actions[option_index]
             if not Card_Id.is_null(card_id):
                 people = state.get_card(card_id)
                 people.destroyed = False
+            return []
 
         choice.resolve = resolve
         return choice
@@ -798,13 +803,14 @@ class Stars(Card):
 
         choice = Choice()
         choice.player_index = self.owner
-        choice.actions = Action_List(
-            type="choose-binary",
-            actions=["Draw from shared deck", "Draw normally"]
-        )
+        choice.type = "choose-binary"
+
+        def generate_actions(state, choice):
+            return ["Draw from shared deck", "Draw normally"]
+        choice.generate_actions = generate_actions
 
         stars_card = self
-        def resolve(state: Game_State, choice: Choice, option_index: int) -> None:
+        def resolve(state: Game_State, choice: Choice, option_index: int):
             player_id = stars_card.owner
             if option_index == 0:
                 power = effective_power(state, stars_card)
@@ -813,8 +819,9 @@ class Stars(Card):
                 card.power = power
                 card.owner = self.owner
                 player.hand.append(card)
+                return []
             else:
-                draw_card(state, player_id, replacement_effects=False)
+                return draw_card(state, player_id, replacement_effects=False)
 
         choice.resolve = resolve
         return choice

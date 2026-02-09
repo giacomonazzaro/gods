@@ -7,32 +7,31 @@ class Agent_Terminal:
     def message(self, msg: str):
         print("Terminal Agent:", msg)
 
-    def choose_action(self, state: Game_State, choice: Choice) -> int:
+    def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
         player = state.players[choice.player_index]
-        action_list = choice.actions
-        if len(action_list.actions) == 0:
+        if len(actions) == 0:
             return 0
-        elif len(action_list.actions) == 1:
+        elif len(actions) == 1:
             return 0
 
         print(f"\n{player.name}, choose an action:")
 
         # Display options based on action type
-        if action_list.type == "main":
+        if choice.type == "main":
             action_labels = {
                 "play": "Play a card",
                 "pass": "Pass (draw a card)",
                 "end": "End the game"
             }
-            for i, action in enumerate(action_list.actions):
+            for i, action in enumerate(actions):
                 label = action_labels.get(action, action)
                 print(f"  {i + 1}: {label}")
-        elif action_list.type == "choose-binary":
+        elif choice.type == "choose-binary":
             print(f"  1: Yes")
             print(f"  2: No")
-        elif action_list.type == "choose-card":
+        elif choice.type == "choose-card":
             from gods.models import Card_Id
-            for i, card_id in enumerate(action_list.actions):
+            for i, card_id in enumerate(actions):
                 if Card_Id.is_null(card_id):
                     print(f"  {i + 1}: Done")
                 else:
@@ -40,10 +39,10 @@ class Agent_Terminal:
                     print(f"  {i + 1}: {card.name}")
         else:
             # Fallback for unknown types
-            for i, action in enumerate(action_list.actions):
+            for i, action in enumerate(actions):
                 print(f"  {i + 1}: {action}")
 
-        num_options = len(action_list.actions) if action_list.type != "choose-binary" else 2
+        num_options = len(actions) if choice.type != "choose-binary" else 2
         selected = -1
         while selected not in range(num_options):
             try:

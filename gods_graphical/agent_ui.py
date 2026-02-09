@@ -51,23 +51,21 @@ class Agent_UI(Agent):
         self.table_state = table_state
         self.highlighted_cards = []
         self.buttons = []
-        pass
 
     def message(self, msg: str):
         pass
 
-    def choose_action(self, state: Game_State, choice: Choice) -> int:
-        action_list = choice.actions
-        if len(action_list.actions) == 0:
+    def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
+        if len(actions) == 0:
             return 0
-        elif len(action_list.actions) == 1:
+        elif len(actions) == 1:
             return 0
 
         mx, my = get_mouse_x(), get_mouse_y()
         click = is_mouse_button_pressed(MouseButton.MOUSE_BUTTON_LEFT)
 
         # Display options based on action type
-        count = len(action_list.actions)
+        count = len(actions)
         button_w = 140
         button_h = 45
         gap = 20
@@ -75,24 +73,24 @@ class Agent_UI(Agent):
         start_x = (tweak["window_width"] - total_width) // 2
         button_y = tweak["window_height"] - 50
 
-        if action_list.type == "main":
+        if choice.type == "main":
             self.buttons = []
-            for i, action in enumerate(action_list.actions):
+            for i, action in enumerate(actions):
                 x = start_x + i * (button_w + gap)
                 button = Button(x, button_y, button_w, button_h, text=str(action))
                 self.buttons.append(button)
 
-        elif action_list.type == "choose-binary":
+        elif choice.type == "choose-binary":
             self.buttons = []
             labels = ["Yes", "No"]
             for i in range(2):
                 x = start_x + i * (button_w + gap)
                 button = Button(x, button_y, button_w, button_h, text=labels[i])
                 self.buttons.append(button)
-        elif action_list.type == "choose-card":
+        elif choice.type == "choose-card":
             self.highlighted_cards = []
             self.buttons = []
-            for i, card_id in enumerate(action_list.actions):
+            for i, card_id in enumerate(actions):
                 if Card_Id.is_null(card_id):
                     x = start_x
                     button = Button(x, button_y, button_w, button_h, text="Done")
@@ -101,24 +99,24 @@ class Agent_UI(Agent):
                     card = state.get_card(card_id)
                     kt_card = self.table_state.animated_cards[card.id]
                     self.highlighted_cards.append(card_id)
-        
+
         selected = -1
         while selected == -1:
             time.sleep(1/60)  # Yield the GIL so the render thread can run
             mx, my = get_mouse_x(), get_mouse_y()
             click = is_mouse_button_pressed(MouseButton.MOUSE_BUTTON_LEFT)
-            if action_list.type == "main":
-                for i, action in enumerate(action_list.actions):
+            if choice.type == "main":
+                for i, action in enumerate(actions):
                     if self.buttons[i].pressed(mx, my, click):
                         selected = i
                         break
-            elif action_list.type == "choose-binary":
+            elif choice.type == "choose-binary":
                 for i in range(2):
                     if self.buttons[i].pressed(mx, my, click):
                         selected = i
                         break
-            elif action_list.type == "choose-card":
-                for i, card_id in enumerate(action_list.actions):
+            elif choice.type == "choose-card":
+                for i, card_id in enumerate(actions):
                     if Card_Id.is_null(card_id):
                         if self.buttons[0].pressed(mx, my, click):
                             selected = i
@@ -131,21 +129,6 @@ class Agent_UI(Agent):
                         if click and point_in_rect(mx, my, kt_card.x, kt_card.y, w, h):
                             selected = i
                             break
-        
-        # )
-        # else:
-        #     # Fallback for unknown types
-        #     for i, action in enumerate(action_list.actions):
-        #         print(f"  {i + 1}: {action}")
-
-        # num_options = len(action_list.actions) if action_list.type != "choose-binary" else 2
-        # selected = -1
-        # while selected not in range(num_options):
-        #     try:
-        #         selected = int(input("Enter choice: "))
-        #         selected -= 1  # Adjust for 0-based index
-        #     except ValueError:
-        #         pass
 
         update_stacks(self.table_state, state)
         self.highlighted_cards = []

@@ -8,5 +8,5 @@ class Agent_Duel(Agent):
     def message(self, msg: str):
         print("Duel:", msg)
 
-    def choose_action(self, state: Game_State, choice: Choice):
-        return self.agents[choice.player_index].choose_action(state, choice)
+    def choose_action(self, state: Game_State, choice: Choice, actions: list):
+        return self.agents[choice.player_index].choose_action(state, choice, actions)

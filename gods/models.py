@@ -69,16 +69,11 @@ class Player:
     wonders: list[Card] = field(default_factory=list)  # wonders in play
 
 @dataclass
-class Action_List:
-    type: str = "" # choose-wonder, choose-hand, choose-discard, choose-people, choose-binary 
-    actions: list = field(default_factory=list)  # list of Card_Id or other identifiers
-    
-@dataclass
 class Choice:
     player_index: int = 0
-    actions: Action_List = Action_List()
+    type: str = "" # main, choose-card, choose-binary
+    generate_actions: Callable[[Game_State, Choice], list] = None
     resolve: Callable[[Game_State, Choice, int], None] = None
-    generate_actions: Callable[[Game_State, Choice], None] = None
     
 
 @dataclass
@@ -107,8 +102,6 @@ class Game_State:
     game_over: bool = False
     extra_turns: int = 0  # for Prophecy card
     shared_deck: list[Card] = field(default_factory=list)  # for Stars card
-
-    choices: list[Choice] = field(default_factory=list)
 
     def active_player(self) -> Player:
         return self.players[self.current_player]

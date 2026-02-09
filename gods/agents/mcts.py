@@ -53,23 +53,22 @@ class Agent_MCTS:
         best_child_index = max(node.children, key=lambda c: self.tree[c].visits)
         return self.tree[best_child_index].action_index
 
-    def choose_action(self, state: Game_State, choice: Choice) -> int:
-        action_list = choice.actions
-        if len(action_list.actions) == 0:
+    def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
+        if len(actions) == 0:
             return 0
-        if len(action_list.actions) == 1:
+        if len(actions) == 1:
             return 0
 
         self.player_index = choice.player_index
-        selected = self.mcts_search(state, choice)
+        selected = self.mcts_search(state, choice, actions)
         return selected
 
-    def mcts_search(self, state: Game_State, choice: Choice) -> int:
+    def mcts_search(self, state: Game_State, choice: Choice, actions: list) -> int:
         self.tree = []
         root = self.create_node()
-        self.tree[root].untried_actions = list(range(len(choice.actions.actions)))
+        self.tree[root].untried_actions = list(range(len(actions)))
 
-        print("started:", choice.actions.type)
+        print("started:", choice.type)
         start_time = time.time()
         iteration = 0
         while (time.time() - start_time) < self.time_limit:
@@ -77,6 +76,7 @@ class Agent_MCTS:
             # clone state for simulation
             sim_state = copy.deepcopy(state)
             sim_choice = copy.deepcopy(choice)
+            sim_choices = []
             node_index = root
 
             # selection: traverse tree using UCB1
@@ -84,8 +84,9 @@ class Agent_MCTS:
             while node.untried_actions == [] and node.children:
                 node_index = self.best_child(node_index)
                 node = self.tree[node_index]
-                sim_choice.resolve(sim_state, sim_choice, node.action_index)
-                sim_choice = get_next_choice(sim_state)
+                new_choices = sim_choice.resolve(sim_state, sim_choice, node.action_index) or []
+                sim_choices.extend(new_choices)
+                sim_choice = get_next_choice(sim_state, sim_choices)
                 if sim_choice is None:
                     break
 
@@ -97,11 +98,13 @@ class Agent_MCTS:
                 node.children.append(child_index)
                 node_index = child_index
                 node = self.tree[node_index]
-                sim_choice.resolve(sim_state, sim_choice, action)
+                new_choices = sim_choice.resolve(sim_state, sim_choice, action) or []
+                sim_choices.extend(new_choices)
                 # initialize child's untried actions for the next choice
-                sim_choice = get_next_choice(sim_state)
+                sim_choice = get_next_choice(sim_state, sim_choices)
                 if sim_choice is not None:
-                    node.untried_actions = list(range(len(sim_choice.actions.actions)))
+                    sim_actions = sim_choice.generate_actions(sim_state, sim_choice)
+                    node.untried_actions = list(range(len(sim_actions)))
 
             # simulation: play randomly until game ends
             result = self.simulate(sim_state)
@@ -113,11 +116,11 @@ class Agent_MCTS:
                 node.wins += result
                 node_index = node.parent
 
-        print(choice.actions.type, "iterations:", iteration)
+        print(choice.type, "iterations:", iteration)
         root_node = self.tree[root]
         for child_index in root_node.children:
             child = self.tree[child_index]
-            print("child:", choice.actions.actions[child.action_index], child.visits, child.wins/child.visits)
+            print("child:", actions[child.action_index], child.visits, child.wins/child.visits)
 
         return self.best_action(root)
 

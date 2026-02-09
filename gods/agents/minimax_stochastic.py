@@ -42,24 +42,23 @@ class Agent_Minimax_Stochastic:
 
         return sampled
 
-    def choose_action(self, state: Game_State, choice: Choice) -> int:
-        action_list = choice.actions
-        if len(action_list.actions) == 0:
+    def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
+        if len(actions) == 0:
             return 0
-        if len(action_list.actions) == 1:
+        if len(actions) == 1:
             return 0
 
         is_root = self.player_index is None
         if is_root:
             self.player_index = choice.player_index
 
-        selected = self._search(state, choice)
+        selected = self._search(state, choice, actions)
 
         if is_root:
             self.player_index = None
         return selected
 
-    def _search(self, state: Game_State, choice: Choice) -> int:
+    def _search(self, state: Game_State, choice: Choice, actions: list) -> int:
         """Stochastic minimax with root sampling.
 
         Runs multiple samples to handle hidden information:
@@ -69,13 +68,13 @@ class Agent_Minimax_Stochastic:
         For each sample, runs iterative deepening alpha-beta search.
         Returns the action with the highest average score across samples.
         """
-        num_actions = len(choice.actions.actions)
+        num_actions = len(actions)
         total_scores: list[float] = [0.0] * num_actions
         votes: list[int] = [0] * num_actions
         time_per_sample = self.time_limit / self.num_samples
         overall_start = time.time()
 
-        print(f"started: {choice.actions.type} ({self.num_samples} samples)")
+        print(f"started: {choice.type} ({self.num_samples} samples)")
 
         for _ in range(self.num_samples):
             sampled_state = self._sample_state(state, self.player_index)  # type: ignore[arg-type]
@@ -85,9 +84,10 @@ class Agent_Minimax_Stochastic:
                 start_time=time.time(),
                 time_limit=time_per_sample,
             )
-            scores = minimax_search(sampled_state, choice, self.max_depth, ctx)
+            scores = minimax_search(sampled_state, choice, actions, self.max_depth, ctx)
             best_action = max(range(num_actions), key=lambda a: scores[a])
             votes[best_action] += 1
+
 
             for i, score in enumerate(scores):
                 total_scores[i] += score
@@ -96,7 +96,7 @@ class Agent_Minimax_Stochastic:
         elapsed = time.time() - overall_start
         avg_score = total_scores[best_action] / self.num_samples
         print(
-            f"  result: action={choice.actions.actions[best_action]} "
+            f"  result: action={actions[best_action]} "
             f"avg_score={avg_score:.2f} time={elapsed:.2f}s"
         )
 

@@ -14,11 +14,10 @@ class Agent_Minimax:
     def message(self, msg: str):
         pass
 
-    def choose_action(self, state: Game_State, choice: Choice) -> int:
-        action_list = choice.actions
-        if len(action_list.actions) == 0:
+    def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
+        if len(actions) == 0:
             return 0
-        if len(action_list.actions) == 1:
+        if len(actions) == 1:
             return 0
 
         is_root = self.player_index is None
@@ -31,12 +30,12 @@ class Agent_Minimax:
             time_limit=self.time_limit,
         )
 
-        print("started:", choice.actions.type)
-        scores = minimax_search(state, choice, self.max_depth, ctx)
+        print("started:", choice.type)
+        scores = minimax_search(state, choice, actions, self.max_depth, ctx)
         best_action = max(range(len(scores)), key=lambda a: scores[a])
         elapsed = time.time() - ctx.start_time
         print(
-            f"  result: action={choice.actions.actions[best_action]} "
+            f"  result: action={actions[best_action]} "
             f"score={scores[best_action]:.2f} nodes={ctx.nodes_searched} "
             f"time={elapsed:.2f}s"
         )
