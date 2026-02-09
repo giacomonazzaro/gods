@@ -198,7 +198,7 @@ def make_main_choice(state: Game_State) -> Choice:
     if player.hand:
         options.append("play")
     options.append("pass")
-    options.append("end")
+    # options.append("end")
 
     choice.actions = Action_List(
         type="main",
@@ -218,9 +218,9 @@ def make_main_choice(state: Game_State) -> Choice:
                 if c is not None:
                     state.choices.append(c)
             state.current_phase = "post-pass-effects"
-        elif action == "end":
-            declare_end_game(state)
-            state.current_phase = "end"
+        # elif action == "end":
+        #     declare_end_game(state)
+        #     state.current_phase = "end"
     choice.resolve = resolve
     return choice
 
