@@ -71,6 +71,7 @@ class Agent_Minimax_Stochastic:
         """
         num_actions = len(choice.actions.actions)
         total_scores: list[float] = [0.0] * num_actions
+        votes: list[int] = [0] * num_actions
         time_per_sample = self.time_limit / self.num_samples
         overall_start = time.time()
 
@@ -84,13 +85,14 @@ class Agent_Minimax_Stochastic:
                 start_time=time.time(),
                 time_limit=time_per_sample,
             )
-
             scores = minimax_search(sampled_state, choice, self.max_depth, ctx)
+            best_action = max(range(num_actions), key=lambda a: scores[a])
+            votes[best_action] += 1
 
             for i, score in enumerate(scores):
                 total_scores[i] += score
 
-        best_action = max(range(num_actions), key=lambda a: total_scores[a])
+        best_action = max(range(num_actions), key=lambda a: votes[a])
         elapsed = time.time() - overall_start
         avg_score = total_scores[best_action] / self.num_samples
         print(
