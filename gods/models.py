@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 from enum import Enum
 
 
@@ -29,17 +29,17 @@ class Card:
     owner: Optional[int] = None  # player index who controls this card (for people)
     id: int = -1
 
-    def on_draw(self, game): pass
-    def on_draw_replacement(self, game): return False
-    def on_played(self, game): pass
-    def on_destroyed(self, game): pass
-    def on_play(self, game, card_played): pass
-    def on_destroy(self, game, card_destroyed): pass
-    def on_restore(self, game, card_destroyed): pass
-    def on_discard(self, game, card_discarded: List[Card]): pass
-    def on_pass(self, game): pass
-    def on_turn_end(self, game): pass
-    def on_turn_start(self, game): pass
+    def on_draw(self, game: Game_State) -> list[Choice]: return []
+    def on_draw_replacement(self, game: Game_State) -> list[Choice]: return []
+    def on_played(self, game: Game_State) -> list[Choice]: return []
+    def on_destroyed(self, game: Game_State) -> None: pass
+    def on_play(self, game: Game_State, card_played: Card) -> None: pass
+    def on_destroy(self, game: Game_State, card_destroyed: Card) -> None: pass
+    def on_restore(self, game: Game_State, card_destroyed: Card) -> None: pass
+    def on_discard(self, game: Game_State, card_discarded: Card) -> None: pass
+    def on_pass(self, game: Game_State) -> list[Choice]: return []
+    def on_turn_end(self, game: Game_State) -> list[Choice]: return []
+    def on_turn_start(self, game: Game_State) -> list[Choice]: return []
     def power_modifier(self, game: Game_State, card: Card, power: int) -> int:
         """Modify another card's power. Override in subclasses."""
         return power
@@ -72,8 +72,8 @@ class Player:
 class Choice:
     player_index: int = 0
     type: str = "" # main, choose-card, choose-binary
-    generate_actions: Callable[[Game_State, Choice], list] = None
-    resolve: Callable[[Game_State, Choice, int], None] = None
+    generate_actions: Callable[[Game_State, Choice], list] | None = None
+    resolve: Callable[[Game_State, Choice, int], list[Choice]] | None = None
     
 
 @dataclass

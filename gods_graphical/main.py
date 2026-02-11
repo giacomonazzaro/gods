@@ -173,9 +173,10 @@ set_target_fps(tweak["target_fps"])
 
 from gods_graphical.agent_ui import Agent_UI
 from gods.agents.minimax import Agent_Minimax
+from gods.agents.minimax_stochastic import Agent_Minimax_Stochastic
 agent_ui = Agent_UI(table_state)
 agent_mcts = Agent_MCTS()
-agent_minimax = Agent_Minimax()
+agent_minimax = Agent_Minimax_Stochastic()
 agent = Agent_Duel(agent_ui, agent_minimax)
 
 import threading

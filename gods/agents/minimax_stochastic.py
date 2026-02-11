@@ -56,6 +56,8 @@ class Agent_Minimax_Stochastic:
 
         if is_root:
             self.player_index = None
+        print(f"choice: {choice.type}: {actions}")
+        print(f"selected: {actions[selected]}")
         return selected
 
     def _search(self, state: Game_State, choice: Choice, actions: list) -> int:
