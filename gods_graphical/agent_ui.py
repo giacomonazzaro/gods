@@ -5,6 +5,7 @@ from gods.game import *
 from kitchen_table.config import tweak
 from pyray import *
 import time
+from dataclasses import dataclass
 
 def point_in_rect(mx: float, my: float, x: float, y: float, w: float, h: float) -> bool:
     return x <= mx <= x + w and y <= my <= y + h
