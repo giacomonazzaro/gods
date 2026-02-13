@@ -318,7 +318,8 @@ def run_client(host: str = "localhost", port: int = DEFAULT_PORT):
             print("Disconnected from server.")
             return
 
-    # Open Raylib window
+    # Open Raylib window, flag for high-DPI displays
+    set_config_flags(ConfigFlags.FLAG_WINDOW_HIGHDPI)
     init_window(tweak["window_width"], tweak["window_height"], "Gods Online")
     set_target_fps(tweak["target_fps"])
 
