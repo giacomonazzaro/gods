@@ -266,7 +266,7 @@ def animate(cards, state, dt: float = 0.1) -> None:
         r_card.y = r_card.y * (1 - dt) + t_card.y * dt
         v_x = r_card.x - old_pos_x
         r_card.rotation = r_card.rotation * (1 - dt) + t_card.rotation * dt
-        r_card.rotation += v_x * 0.2
+        r_card.rotation += v_x * 0.1
 
     selected_card_id = state.drag_state.card_id
     if selected_card_id >= 0:
