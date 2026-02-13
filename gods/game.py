@@ -2,7 +2,7 @@ from __future__ import annotations
 import random
 from typing import Optional
 from gods.models import Card, Card_Id, Card_Type, Choice, Game_State
-
+from gods.agents.agent import Agent
 
 def draw_card(game: Game_State, player_id: int, replacement_effects=True) -> list[Choice]:
     """Draw a card from the player's deck. Returns list of choices produced by draw effects."""
@@ -221,7 +221,7 @@ def get_next_choice(state: Game_State, choices: list[Choice]) -> Choice | None:
     while not state.game_over:
         if choices:
             choice = choices.pop(0)
-            actions = choice.generate_actions(state, choice) if choice.generate_actions else []
+            actions = choice.generate_actions(state, choice)
             if not actions:
                 continue
             return choice
@@ -305,7 +305,7 @@ def display_game_state(game: Game_State, current_player_view: bool = True) -> No
         print("  points:", compute_player_score(game, i))
     print("\n" + "=" * 60)
 
-def game_loop(game: Game_State, agent: any, display: any = display_game_state) -> None:
+def game_loop(game: Game_State, agent: Agent, display: any = display_game_state) -> None:
     choices = []
     while not game.game_over:
         choice = get_next_choice(game, choices)

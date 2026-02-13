@@ -68,12 +68,18 @@ class Player:
     discard: list[Card] = field(default_factory=list)
     wonders: list[Card] = field(default_factory=list)  # wonders in play
 
+def generate_no_actions(state: Game_State, choice) -> list:
+    return []
+
+def resolve_nothing(state: Game_State, choice, index: int):
+    pass
+
 @dataclass
 class Choice:
     player_index: int = 0
     type: str = "" # main, choose-card, choose-binary
-    generate_actions: Callable[[Game_State, Choice], list] | None = None
-    resolve: Callable[[Game_State, Choice, int], list[Choice]] | None = None
+    generate_actions: Callable[[Game_State, Choice], list] = generate_no_actions
+    resolve: Callable[[Game_State, Choice, int], list[Choice]] = resolve_nothing
     
 
 @dataclass
