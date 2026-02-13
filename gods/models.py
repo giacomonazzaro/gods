@@ -114,17 +114,15 @@ class Game_State:
 
     def opponent(self) -> Player:
         return self.players[1 - self.current_player]
-
-    def peoples_ids(self) -> list[Card_Id]:
-        return [Card_Id(area="people", card_index=i, owner_index=card.owner) for (i, card) in enumerate(self.peoples)]
     
-    def wonders_ids(self, player_index: int) -> list[Card_Id]:
-        result = []
-        for player in [self.active_player(), self.opponent()]:
-            player_index = self.players.index(player)
-            for (i, card) in enumerate(player.wonders):
-                result.append(Card_Id(area="wonders", card_index=i, owner_index=player_index))
-        return result
+    def wonders(state: Game_State, player_index: int) -> list[Card_Id]:
+        return [Card_Id(area="wonders", card_index=i, owner_index=player_index) for i in range(len(state.players[player_index].wonders))]
+
+    def discard(state: Game_State, player_index: int) -> list[Card_Id]:
+        return [Card_Id(area="discard", card_index=i, owner_index=player_index) for i in range(len(state.players[player_index].discard))]
+
+    def hand(state: Game_State, player_index: int) -> list[Card_Id]:
+        return [Card_Id(area="hand", card_index=i, owner_index=player_index) for i in range(len(state.players[player_index].hand))]
 
     def switch_turn(self) -> None:
         if self.extra_turns > 0:
@@ -142,6 +140,12 @@ class Game_State:
 
     def get_card(self, card_id: Card_Id) -> Card:
         assert not Card_Id.is_null(card_id)
+
+        if card_id.area == "people":
+            assert self.peoples[card_id.card_index].owner == card_id.owner_index
+            return self.peoples[card_id.card_index]
+        assert card_id.owner_index is not None
+
         if card_id.area == "deck":
             return self.players[card_id.owner_index].deck[card_id.card_index]
         elif card_id.area == "hand":
@@ -150,8 +154,6 @@ class Game_State:
             return self.players[card_id.owner_index].discard[card_id.card_index]
         elif card_id.area == "wonders":
             return self.players[card_id.owner_index].wonders[card_id.card_index]
-        elif card_id.area == "people":
-            return self.peoples[card_id.card_index]
         else:
             raise ValueError(f"Invalid card area: {card_id.area}")
 
