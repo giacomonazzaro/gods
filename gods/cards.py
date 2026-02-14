@@ -176,9 +176,10 @@ class Eruption(Card):
         def generate_actions(state: Game_State, choice: Choice) -> list:
             eligible = eruption.get_card_selection(state)
             power = effective_power(state, eruption)
+            num_cards = min(power, len(eligible))
             combinations = []
-            for k in range(min(power, len(eligible)) + 1):
-                combinations.extend(itertools.combinations(eligible, k))
+            for k in range(0, num_cards + 1):
+                combinations += itertools.combinations(eligible, k)
             return combinations
         choice.generate_actions = generate_actions
 
@@ -189,7 +190,7 @@ class Eruption(Card):
             for card in cards:
                 player = state.players[card.owner]
                 idx = player.wonders.index(card)
-                shuffle_wonder_into_deck(state, Card_Id(area="wonders", card_index=idx, owner_index=card.owner))
+                shuffle_card_into_deck(state, Card_Id(area="wonders", card_index=idx, owner_index=card.owner))
             return []
 
         choice.resolve = resolve

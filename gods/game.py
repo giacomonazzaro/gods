@@ -125,7 +125,7 @@ def restore_people(game: Game_State, card_id: Card_Id) -> None:
     people = game.get_card(card_id)
     people.destroyed = False
 
-def shuffle_wonder_into_deck(game: Game_State, card_id: Card_Id) -> None:
+def shuffle_card_into_deck(game: Game_State, card_id: Card_Id) -> None:
     card = game.get_card(card_id)
     assert card.card_type == Card_Type.WONDER, card.card_type
     assert card_id.area in ["wonders", "discard"], f"{card_id.area}"
