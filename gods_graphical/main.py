@@ -164,12 +164,13 @@ def main(player_index: int, seed: int, sock):
     ui_state = UI_State()
     agent_ui = Agent_UI(table_state, ui_state, bottom_player=player_index)
     if sock is not None:
-        # Instruct UI to send messages
+        agent_local = Agent_Local_Online(agent_ui, sock)
         agent_opponent = Agent_Remote(sock)
     else:
+        agent_local = agent_ui
         agent_opponent = Agent_Minimax_Stochastic()
 
-    agent = Agent_Duel(agent_ui, agent_opponent, swap=player_index != 0)
+    agent = Agent_Duel(agent_local, agent_opponent, swap=player_index != 0)
 
     def display(state):
         update_stacks(table_state, gods_state, bottom_player=player_index)
