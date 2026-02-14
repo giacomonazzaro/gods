@@ -1,17 +1,22 @@
 from __future__ import annotations
 import socket
+import random
+import threading
 import sys
 
-from gods.setup import quick_setup
-from gods.game import game_loop, check_people_conditions, compute_player_score
-from gods.agents.duel import Agent_Duel
-from gods_online.agent_remote import (
-    Agent_Remote, assign_card_ids, serialize_all_cards,
-    serialize_zones, serialize_state_for_player,
-)
-from gods_online.protocol import send_message
+from gods_online.protocol import send_message, recv_message
 
 DEFAULT_PORT = 9999
+
+
+def relay(src, dst):
+    """Forward messages from src to dst until disconnection."""
+    try:
+        while True:
+            msg = recv_message(src)
+            send_message(dst, msg)
+    except ConnectionError:
+        pass
 
 
 def run_server(host: str = "0.0.0.0", port: int = DEFAULT_PORT):
@@ -20,80 +25,34 @@ def run_server(host: str = "0.0.0.0", port: int = DEFAULT_PORT):
     server_sock.bind((host, port))
     server_sock.listen(2)
     print(f"Server listening on {host}:{port}")
-    print("Waiting for Player 1...")
 
+    print("Waiting for Player 1...")
     conn0, addr0 = server_sock.accept()
     print(f"Player 1 connected from {addr0}")
-    send_message(conn0, {
-        "type": "welcome",
-        "player_index": 0,
-        "message": "You are Player 1. Waiting for Player 2...",
-    })
 
     print("Waiting for Player 2...")
     conn1, addr1 = server_sock.accept()
     print(f"Player 2 connected from {addr1}")
-    send_message(conn1, {
-        "type": "welcome",
-        "player_index": 1,
-        "message": "You are Player 2. Game starting!",
-    })
-    send_message(conn0, {"type": "message", "text": "Player 2 connected. Game starting!"})
 
-    # Setup game
-    game = quick_setup()
-    check_people_conditions(game)
-    assign_card_ids(game)
+    # Generate and send seed so both clients create identical game states
+    seed = random.randint(0, 2**32 - 1)
+    send_message(conn0, {"type": "init", "seed": seed, "player_index": 0})
+    send_message(conn1, {"type": "init", "seed": seed, "player_index": 1})
+    print(f"Game started with seed {seed}")
 
-    # Send game_init to both players
-    all_cards = serialize_all_cards(game)
-    zones = serialize_zones(game)
-    for i, conn in enumerate([conn0, conn1]):
-        send_message(conn, {
-            "type": "game_init",
-            "cards": all_cards,
-            "zones": zones,
-            "player_index": i,
-            "scores": [compute_player_score(game, j) for j in range(2)],
-        })
+    # Relay action messages between clients
+    t0 = threading.Thread(target=relay, args=(conn0, conn1), daemon=True)
+    t1 = threading.Thread(target=relay, args=(conn1, conn0), daemon=True)
+    t0.start()
+    t1.start()
 
-    # Create network agents
-    agent0 = Agent_Remote(conn0, player_index=0)
-    agent1 = Agent_Remote(conn1, player_index=1)
-    agent = Agent_Duel(agent0, agent1)
+    t0.join()
+    t1.join()
 
-    # Display callback sends state to both players
-    def display(state):
-        z = serialize_zones(state)
-        c = serialize_all_cards(state)
-        for i, conn in enumerate([conn0, conn1]):
-            state_data = serialize_state_for_player(state, i)
-            send_message(conn, {
-                "type": "state_update",
-                "game_state": state_data,
-                "zones": z,
-                "cards": c,
-            })
-
-    try:
-        game_loop(game, agent, display)
-
-        # Send final results
-        score0 = compute_player_score(game, 0)
-        score1 = compute_player_score(game, 1)
-        for i, conn in enumerate([conn0, conn1]):
-            send_message(conn, {
-                "type": "game_over",
-                "scores": [score0, score1],
-                "final_state": serialize_state_for_player(game, i),
-            })
-    except ConnectionError as e:
-        print(f"Connection lost: {e}")
-    finally:
-        conn0.close()
-        conn1.close()
-        server_sock.close()
-        print("Server shut down.")
+    conn0.close()
+    conn1.close()
+    server_sock.close()
+    print("Server shut down.")
 
 
 if __name__ == "__main__":

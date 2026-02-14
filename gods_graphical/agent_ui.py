@@ -9,22 +9,25 @@ import time
 from gods_graphical.ui import point_in_rect, Button
 
 
-def update_stacks(table_state: Table_State, gods_state: Game_State):
+def update_stacks(table_state: Table_State, gods_state: Game_State, bottom_player: int = 0):
     def update_stack(stack_id: int, card_list):
         table_state.stacks[stack_id].cards = [card.id for card in card_list]
         update_card_positions(table_state.stacks[stack_id], table_state)
 
-    # Player 1 areas (bottom)
-    update_stack(0, gods_state.players[0].deck)
-    update_stack(1, gods_state.players[0].hand)
-    update_stack(2, gods_state.players[0].discard)
-    update_stack(3, gods_state.players[0].wonders)
+    bp = bottom_player
+    tp = 1 - bottom_player
 
-    # Player 2 areas (top)
-    update_stack(4, gods_state.players[1].deck)
-    update_stack(5, gods_state.players[1].hand)
-    update_stack(6, gods_state.players[1].discard)
-    update_stack(7, gods_state.players[1].wonders)
+    # Bottom player areas (stacks 0-3)
+    update_stack(0, gods_state.players[bp].deck)
+    update_stack(1, gods_state.players[bp].hand)
+    update_stack(2, gods_state.players[bp].discard)
+    update_stack(3, gods_state.players[bp].wonders)
+
+    # Top player areas (stacks 4-7)
+    update_stack(4, gods_state.players[tp].deck)
+    update_stack(5, gods_state.players[tp].hand)
+    update_stack(6, gods_state.players[tp].discard)
+    update_stack(7, gods_state.players[tp].wonders)
 
     # People cards (center)
     update_stack(8, gods_state.peoples)
@@ -33,8 +36,9 @@ def update_stacks(table_state: Table_State, gods_state: Game_State):
 
 
 class Agent_UI(Agent):
-    def __init__(self, table_state: Table_State):
+    def __init__(self, table_state: Table_State, bottom_player: int = 0):
         self.table_state = table_state
+        self.bottom_player = bottom_player
         self.highlighted_cards = []
         self.buttons = []
 
@@ -116,7 +120,7 @@ class Agent_UI(Agent):
                             selected = i
                             break
 
-        update_stacks(self.table_state, state)
+        update_stacks(self.table_state, state, self.bottom_player)
         self.highlighted_cards = []
         self.buttons = []
         return selected

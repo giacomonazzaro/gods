@@ -22,7 +22,7 @@ from gods_graphical.ui import (
 )
 
 
-def init_table_state(gods_state: Game_State) -> kt.Table_State:
+def init_table_state(gods_state: Game_State, bottom_player: int = 0) -> kt.Table_State:
     cards = []
     gods_cards = []
 
@@ -61,7 +61,7 @@ def init_table_state(gods_state: Game_State) -> kt.Table_State:
 
     # Create stacks from shared layout
     stacks = []
-    for zone_name, sx, sy, spx, spy, face_up in get_table_layout(bottom_player=0):
+    for zone_name, sx, sy, spx, spy, face_up in get_table_layout(bottom_player=bottom_player):
         card_ids = zone_cards.get(zone_name, [])
         stack = kt.Stack(x=sx, y=sy, cards=card_ids, spread_x=spx, spread_y=spy, face_up=face_up)
         stacks.append(stack)
@@ -72,12 +72,12 @@ def init_table_state(gods_state: Game_State) -> kt.Table_State:
     return table_state
 
 
-def draw_hud(gods_state: Game_State, table_state: kt.Table_State):
+def draw_hud(gods_state: Game_State, table_state: kt.Table_State, bottom_player: int = 0):
     for i in range(2):
         player = gods_state.players[i]
         score = compute_player_score(gods_state, i)
         is_current = i == gods_state.current_player
-        hud_y = 650 if i == 0 else 260
+        hud_y = 650 if i == bottom_player else 260
         draw_player_hud(player.name, score, len(player.deck), is_current, hud_y)
 
     # People ownership
