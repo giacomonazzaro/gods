@@ -104,35 +104,7 @@ def draw_highlighted_cards(highlighted_cards: list, gods_state: Game_State, tabl
             continue
     draw_card_highlights(kt_ids, table_state)
 
-
-# --- Main ---
-def run_app(gods_state: Game_State, table_state: kt.Table_State, ui_state: UI_State, player_index = 0):
-    while not window_should_close():
-        if gods_state.game_over:
-            break
-
-        begin_drawing()
-        clear_background(color_from_tuple(tweak["background_color"]))
-        draw_table(table_state)
-        draw_buttons(ui_state.buttons)
-        draw_highlighted_cards(ui_state.highlighted_cards, gods_state, table_state)
-        end_drawing()
-
-    # Game over screen
-    if gods_state.game_over:
-        update_stacks(table_state, gods_state, bottom_player=player_index)
-        scores = [compute_player_score(gods_state, 0), compute_player_score(gods_state, 1)]
-        names = [gods_state.players[0].name, gods_state.players[1].name]
-        pi = player_index
-        if scores[pi] > scores[1 - pi]:
-            result_text = "You win!"
-        elif scores[pi] < scores[1 - pi]:
-            result_text = "You lose!"
-        else:
-            result_text = "It's a tie!"
-        draw_game_over_screen(table_state, result_text, names, scores)
-
-    close_window()
+    
 
 def setup_online_game(host: str = "localhost", port: int = 9999):
     import socket
@@ -168,24 +140,32 @@ def play(gods_state: Game_State, table_state: kt.Table_State, ui_state: UI_State
     )
     game_thread.start()
 
-    run_app(gods_state, table_state, ui_state, player_index=player_index)
+    while not window_should_close():
+        if gods_state.game_over:
+            break
 
+        begin_drawing()
+        clear_background(color_from_tuple(tweak["background_color"]))
+        draw_table(table_state)
+        draw_buttons(ui_state.buttons)
+        draw_highlighted_cards(ui_state.highlighted_cards, gods_state, table_state)
+        end_drawing()
 
-def main(player_index: int, seed: int, sock):
-    gods_state = quick_setup(seed)
-    table_state = init_table_state(gods_state, bottom_player=player_index)
-    ui_state = UI_State()
+    # Game over screen
+    if gods_state.game_over:
+        update_stacks(table_state, gods_state, bottom_player=player_index)
+        scores = [compute_player_score(gods_state, 0), compute_player_score(gods_state, 1)]
+        names = [gods_state.players[0].name, gods_state.players[1].name]
+        pi = player_index
+        if scores[pi] > scores[1 - pi]:
+            result_text = "You win!"
+        elif scores[pi] < scores[1 - pi]:
+            result_text = "You lose!"
+        else:
+            result_text = "It's a tie!"
+        draw_game_over_screen(table_state, result_text, names, scores)
 
-    # Agents
-    agent_ui = Agent_UI(table_state, ui_state, bottom_player=player_index)
-    if sock is not None:
-        agent_local = Agent_Local_Online(agent_ui, sock)
-        agent_opponent = Agent_Remote(sock)
-    else:
-        agent_local = agent_ui
-        agent_opponent = Agent_Minimax_Stochastic()
-
-    play(gods_state, table_state, ui_state, agent_local, agent_opponent, player_index)
+    close_window()
 
 if __name__ == "__main__":
     import sys
@@ -198,7 +178,19 @@ if __name__ == "__main__":
         seed = None
         sock = None
     
-    main(player_index, seed, sock)
+    gods_state = quick_setup(seed)
+    table_state = init_table_state(gods_state, bottom_player=player_index)
+    ui_state = UI_State()
+    
+    agent_ui = Agent_UI(table_state, ui_state, bottom_player=player_index)
+    if sock is not None:
+        agent_local = Agent_Local_Online(agent_ui, sock)
+        agent_opponent = Agent_Remote(sock)
+    else:
+        agent_local = agent_ui
+        agent_opponent = Agent_Minimax_Stochastic()
+
+    play(gods_state, table_state, ui_state, agent_local, agent_opponent, player_index)
     
     if sock is not None:
         sock.close()

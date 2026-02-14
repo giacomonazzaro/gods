@@ -274,6 +274,7 @@ def animate(cards, state, dt: float = 0.1) -> None:
         cards[selected_card_id].y = state.cards[selected_card_id].y
 
 from copy import deepcopy
+
 def draw_table(table_state: Table_State) -> None:
     if table_state.animated_cards is None:
         table_state.animated_cards = deepcopy(table_state.cards)
