@@ -105,7 +105,7 @@ def draw_highlighted_cards(highlighted_cards: list, gods_state: Game_State, tabl
 
 
 # --- Main ---
-
+# TODO(giacomo): agent_ui should not be passed here, we only need ui data like buttons and highlighted cards.
 def run_app(gods_state: Game_State, table_state: kt.Table_State, agent_ui: Agent_UI, player_index = 0):
     while not window_should_close():
         if gods_state.game_over:
@@ -162,7 +162,7 @@ def main(player_index: int, seed: int, sock):
     set_target_fps(tweak["target_fps"])
 
     # Agents
-    agent_ui = Agent_UI(table_state, bottom_player=player_index)
+    agent_ui: Agent_UI | Agent_Local_Online = Agent_UI(table_state, bottom_player=player_index)
     if sock is not None:
         # Instruct UI to send messages
         agent_ui = Agent_Local_Online(agent_ui, sock)
@@ -170,10 +170,7 @@ def main(player_index: int, seed: int, sock):
     else:
         agent_opponent = Agent_Minimax_Stochastic()
 
-    if player_index == 0:
-        agent = Agent_Duel(agent_ui, agent_opponent)
-    else:
-        agent = Agent_Duel(agent_opponent, agent_ui)
+    agent = Agent_Duel(agent_ui, agent_opponent, swap=player_index != 0)
 
     def display(state):
         update_stacks(table_state, gods_state, bottom_player=player_index)
@@ -186,8 +183,6 @@ def main(player_index: int, seed: int, sock):
 
     run_app(gods_state, table_state, agent_ui, player_index=player_index)
 
-    if sock is not None:
-        sock.close()
 
 if __name__ == "__main__":
     import sys
@@ -201,3 +196,6 @@ if __name__ == "__main__":
         sock = None
     
     main(player_index, seed, sock)
+    
+    if sock is not None:
+        sock.close()
