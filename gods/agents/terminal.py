@@ -37,6 +37,13 @@ class Agent_Terminal:
                 else:
                     card = state.get_card(card_id)
                     print(f"  {i + 1}: {card.name}")
+        elif choice.type == "choose-cards":
+            for i, combination in enumerate(actions):
+                if len(combination) == 0:
+                    print(f"  {i + 1}: None")
+                else:
+                    names = [state.get_card(card_id).name for card_id in combination]
+                    print(f"  {i + 1}: {', '.join(names)}")
         else:
             # Fallback for unknown types
             for i, action in enumerate(actions):

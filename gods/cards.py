@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import itertools
 from gods.models import Card, Card_Id, Card_Type, Card_Color, Game_State, effective_power, Choice
 from gods.game import *
 
@@ -161,7 +162,7 @@ class Eruption(Card):
         power = effective_power(game, self)
         for (player_id, p) in enumerate(game.players):
             for (i, w) in enumerate(p.wonders):
-                if w.color == Card_Color.BLUE and effective_power(game, w) <= power:
+                if w.color == Card_Color.BLUE:
                     card_id = Card_Id(area="wonders", card_index=i, owner_index=player_id)
                     targets.append(card_id)
         return targets
@@ -169,16 +170,26 @@ class Eruption(Card):
     def on_played(self, game: Game_State) -> list[Choice]:
         choice = Choice()
         choice.player_index = game.current_player
-        choice.type = "choose-card"
+        choice.type = "choose-cards"
 
+        eruption = self
         def generate_actions(state: Game_State, choice: Choice) -> list:
-            return self.get_card_selection(state)
+            eligible = eruption.get_card_selection(state)
+            power = effective_power(state, eruption)
+            combinations = []
+            for k in range(min(power, len(eligible)) + 1):
+                combinations.extend(itertools.combinations(eligible, k))
+            return combinations
         choice.generate_actions = generate_actions
 
         def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
             actions = choice.generate_actions(state, choice)
-            card_id = actions[option_index]
-            shuffle_wonder_into_deck(state, card_id)
+            combination = actions[option_index]
+            cards = [state.get_card(card_id) for card_id in combination]
+            for card in cards:
+                player = state.players[card.owner]
+                idx = player.wonders.index(card)
+                shuffle_wonder_into_deck(state, Card_Id(area="wonders", card_index=idx, owner_index=card.owner))
             return []
 
         choice.resolve = resolve
@@ -246,41 +257,34 @@ class Flashback(Card):
             if card.card_type == Card_Type.EVENT:
                 card_id = Card_Id(area="discard", card_index=i, owner_index=game.current_player)
                 result.append(card_id)
-        result.append(Card_Id.null())
         return result
 
     def on_played(self, game: Game_State) -> list[Choice]:
-        return self._make_nth_choice(game, 0)
-
-    def _make_nth_choice(self, game: Game_State, n: int) -> list[Choice]:
-        power = effective_power(game, self)
-        if n >= power:
-            return []
-
         choice = Choice()
         choice.player_index = game.current_player
-        choice.type = "choose-card"
-
-        def generate_actions(state: Game_State, choice: Choice) -> list:
-            return self.get_card_selection(state)
-        choice.generate_actions = generate_actions
+        choice.type = "choose-cards"
 
         flashback = self
-        def make_resolve(iteration):
-            def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
-                actions = choice.generate_actions(state, choice)
-                card_id = actions[option_index]
-                result: list[Choice] = []
-                if not Card_Id.is_null(card_id):
-                    card = state.get_card(card_id)
-                    player = state.players[state.current_player]
-                    player.discard.remove(card)
-                    player.hand.append(card)
-                    result.extend(flashback._make_nth_choice(state, iteration + 1))
-                return result
-            return resolve
+        def generate_actions(state: Game_State, choice: Choice) -> list:
+            eligible = flashback.get_card_selection(state)
+            power = effective_power(state, flashback)
+            combinations = []
+            for k in range(min(power, len(eligible)) + 1):
+                combinations.extend(itertools.combinations(eligible, k))
+            return combinations
+        choice.generate_actions = generate_actions
 
-        choice.resolve = make_resolve(n)
+        def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
+            actions = choice.generate_actions(state, choice)
+            combination = actions[option_index]
+            cards = [state.get_card(card_id) for card_id in combination]
+            player = state.players[state.current_player]
+            for card in cards:
+                player.discard.remove(card)
+                player.hand.append(card)
+            return []
+
+        choice.resolve = resolve
         return [choice]
 
 
@@ -332,42 +336,35 @@ class Time_Warp(Card):
             for (i, w) in enumerate(p.wonders):
                 card_id = Card_Id(area="wonders", card_index=i, owner_index=player_id)
                 targets.append(card_id)
-        targets.append(Card_Id.null())
         return targets
 
     def on_played(self, game: Game_State) -> list[Choice]:
-        return self._make_nth_choice(game, 0)
-
-    def _make_nth_choice(self, game: Game_State, n: int) -> list[Choice]:
-        power = effective_power(game, self)
-        if n >= power:
-            return []
-
         choice = Choice()
         choice.player_index = game.current_player
-        choice.type = "choose-card"
-
-        def generate_actions(state: Game_State, choice: Choice) -> list:
-            return self.get_card_selection(state)
-        choice.generate_actions = generate_actions
+        choice.type = "choose-cards"
 
         time_warp = self
-        def make_resolve(iteration):
-            def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
-                actions = choice.generate_actions(state, choice)
-                card_id = actions[option_index]
-                result: list[Choice] = []
-                if not Card_Id.is_null(card_id):
-                    card = state.get_card(card_id)
-                    player = state.players[card_id.owner_index]
-                    player.wonders.remove(card)
-                    card.counters = 0
-                    player.hand.append(card)
-                    result.extend(time_warp._make_nth_choice(state, iteration + 1))
-                return result
-            return resolve
+        def generate_actions(state: Game_State, choice: Choice) -> list:
+            eligible = time_warp.get_card_selection(state)
+            power = effective_power(state, time_warp)
+            combinations = []
+            for k in range(min(power, len(eligible)) + 1):
+                combinations.extend(itertools.combinations(eligible, k))
+            return combinations
+        choice.generate_actions = generate_actions
 
-        choice.resolve = make_resolve(n)
+        def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
+            actions = choice.generate_actions(state, choice)
+            combination = actions[option_index]
+            cards = [state.get_card(card_id) for card_id in combination]
+            for card in cards:
+                player = state.players[card.owner]
+                player.wonders.remove(card)
+                card.counters = 0
+                player.hand.append(card)
+            return []
+
+        choice.resolve = resolve
         return [choice]
 
 
@@ -393,31 +390,28 @@ class Darkness(Card):
         return result
 
     def on_played(self, game: Game_State) -> list[Choice]:
-        return self._make_nth_choice(game, 0)
-
-    def _make_nth_choice(self, game: Game_State, n: int) -> list[Choice]:
-        power = effective_power(game, self)
-        if n >= power:
-            return []
-
         choice = Choice()
         choice.player_index = 1 - self.owner  # Opponent chooses
-        choice.type = "choose-card"
-
-        def generate_actions(state: Game_State, choice: Choice) -> list:
-            return self.get_card_selection(state)
-        choice.generate_actions = generate_actions
+        choice.type = "choose-cards"
 
         darkness = self
-        def make_resolve(iteration):
-            def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
-                actions = choice.generate_actions(state, choice)
-                card_id = actions[option_index]
-                discard_card(state, card_id)
-                return darkness._make_nth_choice(state, iteration + 1)
-            return resolve
+        def generate_actions(state: Game_State, choice: Choice) -> list:
+            eligible = darkness.get_card_selection(state)
+            power = min(effective_power(state, darkness), len(eligible))
+            return list(itertools.combinations(eligible, power))
+        choice.generate_actions = generate_actions
 
-        choice.resolve = make_resolve(n)
+        def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
+            actions = choice.generate_actions(state, choice)
+            combination = actions[option_index]
+            cards = [state.get_card(card_id) for card_id in combination]
+            opponent_idx = 1 - darkness.owner
+            for card in cards:
+                idx = state.players[opponent_idx].hand.index(card)
+                discard_card(state, Card_Id(area="hand", card_index=idx, owner_index=opponent_idx))
+            return []
+
+        choice.resolve = resolve
         return [choice]
 
 
