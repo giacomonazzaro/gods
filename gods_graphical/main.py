@@ -9,6 +9,7 @@ from gods.game import game_loop, compute_player_score
 from gods.agents.duel import Agent_Duel
 from gods.agents.minimax_stochastic import Agent_Minimax_Stochastic
 
+from gods_online.agent_remote import Agent_Local_Online, Agent_Remote
 import kitchen_table.models as kt
 from kitchen_table.game_state import update_card_positions
 from kitchen_table.config import tweak
@@ -133,31 +134,70 @@ def run_app(gods_state: Game_State, table_state: kt.Table_State, agent_ui: Agent
 
     close_window()
 
-def main():
-    gods_state = quick_setup()
-    table_state = init_table_state(gods_state)
-    table_state.draw_callback = lambda table: draw_hud(gods_state, table_state)
+def setup_online_game(host: str = "localhost", port: int = 9999):
+    import socket
+    from gods_online.protocol import recv_message
 
+    # Connect and receive init
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((host, port))
+    print(f"Connected to {host}:{port}")
+
+    msg = recv_message(sock)
+    seed = msg["seed"]
+    player_index = msg["player_index"]
+    print(f"You are Player {player_index + 1}. Seed: {seed}")
+    return player_index, seed, sock
+
+
+def main(player_index: int, seed: int, sock):
+    gods_state = quick_setup(seed)
+
+    table_state = init_table_state(gods_state, bottom_player=player_index)
+    table_state.draw_callback = lambda table: draw_hud(gods_state, table_state, bottom_player=player_index)
+
+    # Window
     set_config_flags(ConfigFlags.FLAG_WINDOW_HIGHDPI)
-    init_window(tweak["window_width"], tweak["window_height"], tweak["window_title"])
+    init_window(tweak["window_width"], tweak["window_height"], "Gods Online")
     set_target_fps(tweak["target_fps"])
 
-    agent_ui = Agent_UI(table_state)
-    agent_ai = Agent_Minimax_Stochastic()
-    agent = Agent_Duel(agent_ui, agent_ai)
+    # Agents
+    agent_ui = Agent_UI(table_state, bottom_player=player_index)
+    if sock is not None:
+        # Instruct UI to send messages
+        agent_ui = Agent_Local_Online(agent_ui, sock)
+        agent_opponent = Agent_Remote(sock)
+    else:
+        agent_opponent = Agent_Minimax_Stochastic()
 
-    def display(state: Game_State):
-        update_stacks(table_state, gods_state)
+    if player_index == 0:
+        agent = Agent_Duel(agent_ui, agent_opponent)
+    else:
+        agent = Agent_Duel(agent_opponent, agent_ui)
 
-    def game_loop_thread():
-        game_loop(gods_state, agent, display)
+    def display(state):
+        update_stacks(table_state, gods_state, bottom_player=player_index)
 
-    game_thread = threading.Thread(target=game_loop_thread, daemon=True)
+    game_thread = threading.Thread(
+        target=lambda: game_loop(gods_state, agent, display),
+        daemon=True,
+    )
     game_thread.start()
 
-    # Render loop
-    run_app(gods_state, table_state, agent_ui, player_index=0)
+    run_app(gods_state, table_state, agent_ui, player_index=player_index)
 
+    if sock is not None:
+        sock.close()
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 2:
+        host = sys.argv[1] if len(sys.argv) > 1 else "localhost"
+        port = int(sys.argv[2]) if len(sys.argv) > 2 else 9999
+        player_index, seed, sock = setup_online_game(host, port)
+    else:
+        player_index = 0
+        seed = None
+        sock = None
+    
+    main(player_index, seed, sock)
