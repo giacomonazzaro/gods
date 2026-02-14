@@ -41,7 +41,17 @@ def is_indestructible(game: Game_State, people: Card, owner_idx: int) -> bool:
                 return True
     return False
 
-
+def all_combinations(card_ids: list[Card_Id], num_cards: int, up_to: bool) -> list[tuple]:
+    num_cards = min(num_cards, len(card_ids))
+    if up_to:
+        combinations = []
+        for k in range(0, num_cards + 1):
+            combinations += itertools.combinations(card_ids, k)
+        return combinations
+    else:
+        if len(card_ids) <= num_cards:
+            return [tuple(card_ids)]
+        return list(itertools.combinations(card_ids, num_cards))
 
 
 # Card classes with specialized effects
@@ -174,13 +184,9 @@ class Eruption(Card):
 
         eruption = self
         def generate_actions(state: Game_State, choice: Choice) -> list:
-            eligible = eruption.get_card_selection(state)
             power = effective_power(state, eruption)
-            num_cards = min(power, len(eligible))
-            combinations = []
-            for k in range(0, num_cards + 1):
-                combinations += itertools.combinations(eligible, k)
-            return combinations
+            return all_combinations(eruption.get_card_selection(state), power, up_to=True)
+
         choice.generate_actions = generate_actions
 
         def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
@@ -267,12 +273,10 @@ class Flashback(Card):
 
         flashback = self
         def generate_actions(state: Game_State, choice: Choice) -> list:
-            eligible = flashback.get_card_selection(state)
+            card_ids = flashback.get_card_selection(state)
             power = effective_power(state, flashback)
-            combinations = []
-            for k in range(min(power, len(eligible)) + 1):
-                combinations.extend(itertools.combinations(eligible, k))
-            return combinations
+            return all_combinations(card_ids, power, up_to=True)
+
         choice.generate_actions = generate_actions
 
         def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
@@ -346,12 +350,10 @@ class Time_Warp(Card):
 
         time_warp = self
         def generate_actions(state: Game_State, choice: Choice) -> list:
-            eligible = time_warp.get_card_selection(state)
             power = effective_power(state, time_warp)
-            combinations = []
-            for k in range(min(power, len(eligible)) + 1):
-                combinations.extend(itertools.combinations(eligible, k))
-            return combinations
+            card_ids = time_warp.get_card_selection(state)
+            return all_combinations(card_ids, power, up_to=True)
+
         choice.generate_actions = generate_actions
 
         def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
@@ -397,9 +399,10 @@ class Darkness(Card):
 
         darkness = self
         def generate_actions(state: Game_State, choice: Choice) -> list:
-            eligible = darkness.get_card_selection(state)
-            power = min(effective_power(state, darkness), len(eligible))
-            return list(itertools.combinations(eligible, power))
+            card_ids = darkness.get_card_selection(state)
+            power = effective_power(state, darkness)
+            return all_combinations(card_ids, power, up_to=False)
+
         choice.generate_actions = generate_actions
 
         def resolve(state: Game_State, choice: Choice, option_index: int) -> list[Choice]:
