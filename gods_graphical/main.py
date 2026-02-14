@@ -150,31 +150,17 @@ def setup_online_game(host: str = "localhost", port: int = 9999):
     return player_index, seed, sock
 
 
-def main(player_index: int, seed: int, sock):
-    gods_state = quick_setup(seed)
-
-    table_state = init_table_state(gods_state, bottom_player=player_index)
+def play(gods_state: Game_State, table_state: kt.Table_State, ui_state: UI_State, agent_local: Agent, agent_opponent: Agent, player_index: int):
+    agent = Agent_Duel(agent_local, agent_opponent, swap=player_index != 0)
     table_state.draw_callback = lambda table: draw_hud(gods_state, table_state, bottom_player=player_index)
+
+    def display(state):
+        update_stacks(table_state, gods_state, bottom_player=player_index)
 
     # Window
     set_config_flags(ConfigFlags.FLAG_WINDOW_HIGHDPI)
     init_window(tweak["window_width"], tweak["window_height"], "Gods Online")
     set_target_fps(tweak["target_fps"])
-
-    # Agents
-    ui_state = UI_State()
-    agent_ui = Agent_UI(table_state, ui_state, bottom_player=player_index)
-    if sock is not None:
-        agent_local = Agent_Local_Online(agent_ui, sock)
-        agent_opponent = Agent_Remote(sock)
-    else:
-        agent_local = agent_ui
-        agent_opponent = Agent_Minimax_Stochastic()
-
-    agent = Agent_Duel(agent_local, agent_opponent, swap=player_index != 0)
-
-    def display(state):
-        update_stacks(table_state, gods_state, bottom_player=player_index)
 
     game_thread = threading.Thread(
         target=lambda: game_loop(gods_state, agent, display),
@@ -184,6 +170,22 @@ def main(player_index: int, seed: int, sock):
 
     run_app(gods_state, table_state, ui_state, player_index=player_index)
 
+
+def main(player_index: int, seed: int, sock):
+    gods_state = quick_setup(seed)
+    table_state = init_table_state(gods_state, bottom_player=player_index)
+    ui_state = UI_State()
+
+    # Agents
+    agent_ui = Agent_UI(table_state, ui_state, bottom_player=player_index)
+    if sock is not None:
+        agent_local = Agent_Local_Online(agent_ui, sock)
+        agent_opponent = Agent_Remote(sock)
+    else:
+        agent_local = agent_ui
+        agent_opponent = Agent_Minimax_Stochastic()
+
+    play(gods_state, table_state, ui_state, agent_local, agent_opponent, player_index)
 
 if __name__ == "__main__":
     import sys
