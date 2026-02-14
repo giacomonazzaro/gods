@@ -1,18 +1,16 @@
 from gods.agents.agent import Agent
 from gods.models import Game_State, Choice, Card_Id
 from kitchen_table.models import Table_State
-from gods.game import *
+from kitchen_table.game_state import update_card_positions
 from kitchen_table.config import tweak
 from pyray import *
 import time
-from dataclasses import dataclass
 
-def point_in_rect(mx: float, my: float, x: float, y: float, w: float, h: float) -> bool:
-    return x <= mx <= x + w and y <= my <= y + h
+from gods_graphical.ui import point_in_rect, Button
+
 
 def update_stacks(table_state: Table_State, gods_state: Game_State):
-    from kitchen_table.game_state import update_card_positions
-    def update_stack(stack_id: int, card_list: list[Card]):
+    def update_stack(stack_id: int, card_list):
         table_state.stacks[stack_id].cards = [card.id for card in card_list]
         update_card_positions(table_state.stacks[stack_id], table_state)
 
@@ -30,19 +28,6 @@ def update_stacks(table_state: Table_State, gods_state: Game_State):
 
     # People cards (center)
     update_stack(8, gods_state.peoples)
-
-@dataclass
-class Button:
-    x: int
-    y: int
-    width: int
-    height: int
-    text: str = ""
-
-    def pressed(self, mx, my, click) -> bool:
-        if not click:
-            return False
-        return point_in_rect(mx, my, self.x, self.y, self.width, self.height)
 
 
 

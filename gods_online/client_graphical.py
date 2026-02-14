@@ -1,5 +1,4 @@
 from __future__ import annotations
-import os
 import sys
 import socket
 import threading
@@ -12,27 +11,13 @@ from kitchen_table.rendering import draw_table, color_from_tuple
 from kitchen_table.game_state import update_card_positions
 from gods_online.protocol import send_message, recv_message
 
+from gods_graphical.ui import (
+    get_image_path, point_in_rect, Button, draw_card_power_badge,
+    draw_buttons, draw_card_highlights, draw_player_hud,
+    draw_game_over_screen,
+)
+
 DEFAULT_PORT = 9999
-
-
-# --- UI helpers (same as agent_ui.py) ---
-
-def point_in_rect(mx, my, x, y, w, h):
-    return x <= mx <= x + w and y <= my <= y + h
-
-
-class Button:
-    def __init__(self, x, y, width, height, text=""):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.text = text
-
-    def pressed(self, mx, my, click):
-        if not click:
-            return False
-        return point_in_rect(mx, my, self.x, self.y, self.width, self.height)
 
 
 # --- Client state ---
@@ -45,6 +30,7 @@ class Client_State:
         self.cards_info = {}       # card_id -> dict with name, power, etc.
         self.scores = [0, 0]
         self.current_player = 0
+        self.player_names = ["Player 1", "Player 2"]
         self.buttons = []
         self.highlighted_card_ids = []  # kt card IDs to highlight
         self.pending_choice = None      # the choose_action message, or None
@@ -61,42 +47,16 @@ def init_table(client: Client_State, game_init_msg: dict):
     zones = game_init_msg["zones"]
     client.player_index = game_init_msg["player_index"]
     client.scores = game_init_msg["scores"]
-
-    images_dir = os.path.join(os.path.dirname(__file__), "..", "gods", "cards", "card-images")
-
-    def get_image_path(card_name):
-        filename = card_name.lower().replace(" ", "_") + ".jpg"
-        path = os.path.join(images_dir, filename)
-        if os.path.exists(path):
-            return path
-        return None
+    if "player_names" in game_init_msg:
+        client.player_names = game_init_msg["player_names"]
 
     def draw_power(card: kt.Card):
-        w = tweak["card_width"]
-        h = tweak["card_height"]
-        r = tweak["card_corner_radius"]
         info = client.cards_info.get(card.id, {})
         power = str(info.get("power", "?"))
-
-        draw_circle(
-            int(0.88 * w), int(0.12 * w), int(0.12 * w), Color(255, 255, 255, 255)
-        )
-        draw_text(
-            power,
-            int(0.83 * w),
-            int(0.03 * w),
-            int(0.2 * w),
-            Color(0, 0, 0, 255),
-        )
-
-        if info.get("destroyed", False):
-            draw_rectangle_rounded(
-                Rectangle(0, 0, w, h), r / min(w, h), 8,
-                (0, 0, 0, 100),
-            )
+        destroyed = info.get("destroyed", False)
+        draw_card_power_badge(power, destroyed)
 
     # Build card ID -> data mapping and create kt.Cards
-    # Cards must be indexed by their ID, so we need a list big enough
     max_id = max(c["id"] for c in cards_data)
     kt_cards = [None] * (max_id + 1)
 
@@ -168,15 +128,16 @@ def init_table(client: Client_State, game_init_msg: dict):
         update_card_positions(stack, client.table_state)
 
     def table_draw_callback(table):
-        # Bottom player score
-        draw_text(
-            f"points: {client.scores[client.player_index]}",
-            90, 650, 40, Color(255, 255, 255, 255),
+        pi = client.player_index
+        # Bottom player (you)
+        draw_player_hud(
+            client.player_names[pi], client.scores[pi], 0,
+            client.current_player == pi, 650,
         )
-        # Top player score
-        draw_text(
-            f"points: {client.scores[1 - client.player_index]}",
-            90, 280, 40, Color(255, 255, 255, 255),
+        # Top player (opponent)
+        draw_player_hud(
+            client.player_names[1 - pi], client.scores[1 - pi], 0,
+            client.current_player == (1 - pi), 260,
         )
 
     client.table_state.draw_callback = table_draw_callback
@@ -370,30 +331,12 @@ def run_client(host: str = "localhost", port: int = DEFAULT_PORT):
         if client.table_state is not None:
             draw_table(client.table_state)
 
-        # Draw buttons
-        for button in client.buttons:
-            color = color_from_tuple(tweak["button_color"])
-            draw_rectangle_rounded(
-                Rectangle(button.x, button.y, button.width, button.height), 0.3, 8, color,
-            )
-            text_width = measure_text(button.text, 20)
-            text_x = button.x + (button.width - text_width) // 2
-            text_y = button.y + (button.height - 20) // 2
-            draw_text(button.text, text_x, text_y, 20, color_from_tuple(tweak["button_text_color"]))
-
-        # Draw card highlights
-        if client.table_state and client.table_state.animated_cards:
-            for card_id in client.highlighted_card_ids:
-                kt_card = client.table_state.animated_cards[card_id]
-                w = tweak["card_width"]
-                h = tweak["card_height"]
-                draw_rectangle_rounded_lines_ex(
-                    Rectangle(kt_card.x, kt_card.y, w, h), 0.25, 8, 4, (255, 255, 255, 100),
-                )
+        draw_buttons(client.buttons)
+        draw_card_highlights(client.highlighted_card_ids, client.table_state)
 
         end_drawing()
 
-    # Game over screen — keep window open until closed
+    # Game over screen
     if client.game_over_msg:
         scores = client.game_over_msg["scores"]
         pi = client.player_index
@@ -403,21 +346,7 @@ def run_client(host: str = "localhost", port: int = DEFAULT_PORT):
             result_text = "You lose!"
         else:
             result_text = "It's a tie!"
-
-        while not window_should_close():
-            begin_drawing()
-            clear_background(color_from_tuple(tweak["background_color"]))
-            if client.table_state is not None:
-                draw_table(client.table_state)
-            # Overlay
-            draw_rectangle(0, 0, tweak["window_width"], tweak["window_height"], (0, 0, 0, 150))
-            draw_text("GAME OVER", 600, 350, 60, Color(255, 255, 255, 255))
-            draw_text(result_text, 640, 430, 40, Color(255, 215, 0, 255))
-            draw_text(
-                f"Player 1: {scores[0]}  |  Player 2: {scores[1]}",
-                540, 490, 30, Color(200, 200, 200, 255),
-            )
-            end_drawing()
+        draw_game_over_screen(client.table_state, result_text, client.player_names, scores)
 
     close_window()
     client.sock.close()

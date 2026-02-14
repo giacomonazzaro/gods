@@ -1,10 +1,9 @@
 from __future__ import annotations
-import os
 import threading
 
 from pyray import *
 
-from gods.models import Game_State, Card, effective_power
+from gods.models import Game_State, effective_power
 from gods.setup import quick_setup
 from gods.game import game_loop, compute_player_score
 from gods.agents.duel import Agent_Duel
@@ -15,16 +14,11 @@ from kitchen_table.config import tweak
 from kitchen_table.rendering import draw_table, color_from_tuple
 
 from gods_graphical.agent_ui import Agent_UI, update_stacks
-
-IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "gods", "cards", "card-images")
-
-
-def get_image_path(card_name: str) -> str | None:
-    filename = card_name.lower().replace(" ", "_") + ".jpg"
-    path = os.path.join(IMAGES_DIR, filename)
-    if os.path.exists(path):
-        return path
-    return None
+from gods_graphical.ui import (
+    get_image_path, draw_card_power_badge, draw_buttons, draw_card_highlights,
+    draw_player_hud, draw_people_ownership_bars, draw_final_round_indicator,
+    draw_game_over_screen,
+)
 
 
 def init_table_state(gods_state: Game_State) -> kt.Table_State:
@@ -33,23 +27,9 @@ def init_table_state(gods_state: Game_State) -> kt.Table_State:
     stacks = []
 
     def draw_power(card: kt.Card):
-        w = tweak["card_width"]
-        h = tweak["card_height"]
-        r = tweak["card_corner_radius"]
         gods_card = gods_cards[card.id]
         power = str(effective_power(gods_state, gods_card))
-
-        draw_circle(
-            int(0.88 * w), int(0.12 * w), int(0.12 * w), Color(255, 255, 255, 255)
-        )
-        draw_text(
-            power, int(0.83 * w), int(0.03 * w), int(0.2 * w), Color(0, 0, 0, 255)
-        )
-
-        if gods_card.destroyed:
-            draw_rectangle_rounded(
-                Rectangle(0, 0, w, h), r / min(w, h), 8, (0, 0, 0, 100)
-            )
+        draw_card_power_badge(power, gods_card.destroyed)
 
     def add_cards_from_list(card_list, stack_x, stack_y, spread_x=0.0, spread_y=0.0, face_up=True):
         stack_card_indices = []
@@ -117,145 +97,35 @@ def init_table_state(gods_state: Game_State) -> kt.Table_State:
     return kt.Table_State(cards=cards, stacks=stacks)
 
 
-# --- HUD rendering ---
-
-OWNER_COLORS = [
-    (100, 200, 100, 200),  # Player 0 - green
-    (200, 100, 100, 200),  # Player 1 - red
-]
-
-
-def draw_people_ownership(gods_state: Game_State, table_state: kt.Table_State):
-    if not table_state.animated_cards:
-        return
-    w = tweak["card_width"]
-    h = tweak["card_height"]
-    for people in gods_state.peoples:
-        if people.owner is not None and not people.destroyed:
-            kt_card = table_state.animated_cards[people.id]
-            draw_rectangle_rounded(
-                Rectangle(kt_card.x + 4, kt_card.y + h - 12, w - 8, 8),
-                0.5, 4, OWNER_COLORS[people.owner],
-            )
-
-
 def draw_hud(gods_state: Game_State, table_state: kt.Table_State):
-    w_width = tweak["window_width"]
-
     for i in range(2):
         player = gods_state.players[i]
         score = compute_player_score(gods_state, i)
-        deck_count = len(player.deck)
         is_current = i == gods_state.current_player
-
         hud_y = 650 if i == 0 else 260
+        draw_player_hud(player.name, score, len(player.deck), is_current, hud_y)
 
-        # Current player indicator bar
-        if is_current:
-            indicator_color = color_from_tuple(tweak["current_player_color"])
-            draw_rectangle_rounded(
-                Rectangle(10, hud_y - 5, 6, 50), 0.5, 4, indicator_color
-            )
-
-        # Player name
-        name_color = color_from_tuple(tweak["current_player_color"]) if is_current else Color(255, 255, 255, 255)
-        draw_text(player.name, 25, hud_y, 24, name_color)
-
-        # Score
-        draw_text(f"Score: {score}", 25, hud_y + 28, 20, Color(200, 200, 200, 255))
-
-        # Deck count above/below deck stack
-        deck_x = tweak["deck_x"]
-        deck_y = tweak["player1_deck_y"] if i == 0 else tweak["player2_deck_y"]
-        draw_text(
-            str(deck_count),
-            deck_x + tweak["card_width"] // 2 - 10,
-            deck_y - 22,
-            18,
-            Color(180, 180, 180, 255),
-        )
-
-    # People ownership indicators
-    draw_people_ownership(gods_state, table_state)
+    # People ownership
+    people_info = [
+        (p.id, p.owner) for p in gods_state.peoples
+        if p.owner is not None and not p.destroyed
+    ]
+    draw_people_ownership_bars(people_info, table_state)
 
     # Final round indicator
     if gods_state.game_ending and not gods_state.game_over:
-        text = "FINAL ROUND"
-        text_w = measure_text(text, 24)
-        draw_text(
-            text, (w_width - text_w) // 2, tweak["peoples_y"] - 30, 24,
-            Color(255, 180, 0, 200),
-        )
-
-
-# --- Button and highlight rendering ---
-
-def draw_buttons(buttons: list):
-    mx, my = get_mouse_x(), get_mouse_y()
-    for button in buttons:
-        hovered = (button.x <= mx <= button.x + button.width
-                   and button.y <= my <= button.y + button.height)
-        color_key = "button_hover_color" if hovered else "button_color"
-        color = color_from_tuple(tweak[color_key])
-        draw_rectangle_rounded(
-            Rectangle(button.x, button.y, button.width, button.height), 0.3, 8, color
-        )
-        text_width = measure_text(button.text, 20)
-        text_x = button.x + (button.width - text_width) // 2
-        text_y = button.y + (button.height - 20) // 2
-        draw_text(button.text, text_x, text_y, 20, color_from_tuple(tweak["button_text_color"]))
+        draw_final_round_indicator()
 
 
 def draw_highlighted_cards(highlighted_cards: list, gods_state: Game_State, table_state: kt.Table_State):
-    if not table_state.animated_cards:
-        return
-    w = tweak["card_width"]
-    h = tweak["card_height"]
-    highlight_color = color_from_tuple(tweak["highlight_color"])
+    kt_ids = []
     for card_id in highlighted_cards:
         try:
             card = gods_state.get_card(card_id)
+            kt_ids.append(card.id)
         except Exception:
             continue
-        kt_card = table_state.animated_cards[card.id]
-        draw_rectangle_rounded_lines_ex(
-            Rectangle(kt_card.x, kt_card.y, w, h), 0.25, 8, 4, highlight_color
-        )
-
-
-# --- Game over screen ---
-
-def draw_game_over(gods_state: Game_State, table_state: kt.Table_State):
-    scores = [compute_player_score(gods_state, 0), compute_player_score(gods_state, 1)]
-    if scores[0] > scores[1]:
-        result_text = f"{gods_state.players[0].name} wins!"
-    elif scores[1] > scores[0]:
-        result_text = f"{gods_state.players[1].name} wins!"
-    else:
-        result_text = "It's a tie!"
-
-    w_width = tweak["window_width"]
-    w_height = tweak["window_height"]
-
-    while not window_should_close():
-        begin_drawing()
-        clear_background(color_from_tuple(tweak["background_color"]))
-        draw_table(table_state)
-
-        # Semi-transparent overlay
-        draw_rectangle(0, 0, w_width, w_height, color_from_tuple(tweak["modal_overlay"]))
-
-        title_w = measure_text("GAME OVER", 60)
-        draw_text("GAME OVER", (w_width - title_w) // 2, 350, 60, Color(255, 255, 255, 255))
-
-        result_w = measure_text(result_text, 40)
-        draw_text(result_text, (w_width - result_w) // 2, 430, 40, Color(255, 215, 0, 255))
-
-        score_text = f"{gods_state.players[0].name}: {scores[0]}  |  {gods_state.players[1].name}: {scores[1]}"
-        score_w = measure_text(score_text, 30)
-        draw_text(score_text, (w_width - score_w) // 2, 490, 30, Color(200, 200, 200, 255))
-
-        end_drawing()
+    draw_card_highlights(kt_ids, table_state)
 
 
 # --- Main ---
@@ -297,7 +167,15 @@ def main():
     # Game over screen
     if gods_state.game_over:
         update_stacks(table_state, gods_state)
-        draw_game_over(gods_state, table_state)
+        scores = [compute_player_score(gods_state, 0), compute_player_score(gods_state, 1)]
+        names = [gods_state.players[0].name, gods_state.players[1].name]
+        if scores[0] > scores[1]:
+            result_text = f"{names[0]} wins!"
+        elif scores[1] > scores[0]:
+            result_text = f"{names[1]} wins!"
+        else:
+            result_text = "It's a tie!"
+        draw_game_over_screen(table_state, result_text, names, scores)
 
     close_window()
 
