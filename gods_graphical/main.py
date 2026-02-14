@@ -10,29 +10,29 @@ from gods.agents.duel import Agent_Duel
 from gods.agents.minimax_stochastic import Agent_Minimax_Stochastic
 
 import kitchen_table.models as kt
+from kitchen_table.game_state import update_card_positions
 from kitchen_table.config import tweak
 from kitchen_table.rendering import draw_table, color_from_tuple
 
 from gods_graphical.agent_ui import Agent_UI, update_stacks
 from gods_graphical.ui import (
-    get_image_path, draw_card_power_badge, draw_buttons, draw_card_highlights,
-    draw_player_hud, draw_people_ownership_bars, draw_final_round_indicator,
-    draw_game_over_screen,
+    get_image_path, get_table_layout, draw_card_power_badge, draw_buttons,
+    draw_card_highlights, draw_player_hud, draw_people_ownership_bars,
+    draw_final_round_indicator, draw_game_over_screen,
 )
 
 
 def init_table_state(gods_state: Game_State) -> kt.Table_State:
     cards = []
     gods_cards = []
-    stacks = []
 
     def draw_power(card: kt.Card):
         gods_card = gods_cards[card.id]
         power = str(effective_power(gods_state, gods_card))
         draw_card_power_badge(power, gods_card.destroyed)
 
-    def add_cards_from_list(card_list, stack_x, stack_y, spread_x=0.0, spread_y=0.0, face_up=True):
-        stack_card_indices = []
+    def register_cards(card_list):
+        card_ids = []
         for i, card in enumerate(card_list):
             card_id = len(cards)
             kt_card = kt.Card(
@@ -40,61 +40,36 @@ def init_table_state(gods_state: Game_State) -> kt.Table_State:
                 title=card.name,
                 description=card.effect,
                 image_path=get_image_path(card.name),
-                x=stack_x + i * spread_x,
-                y=stack_y + i * spread_y,
                 draw_callback=draw_power,
             )
             card.id = card_id
             card_list[i].kt_card_id = card_id
             cards.append(kt_card)
             gods_cards.append(card)
-            stack_card_indices.append(card_id)
+            card_ids.append(card_id)
+        return card_ids
 
-        stack = kt.Stack(
-            x=stack_x, y=stack_y,
-            cards=stack_card_indices,
-            spread_x=spread_x, spread_y=spread_y,
-            face_up=face_up,
-        )
+    # Register all cards and build zone mapping
+    zone_cards = {}
+    for i in range(2):
+        p = gods_state.players[i]
+        zone_cards[f"p{i}_deck"] = register_cards(p.deck)
+        zone_cards[f"p{i}_hand"] = register_cards(p.hand)
+        zone_cards[f"p{i}_discard"] = register_cards(p.discard)
+        zone_cards[f"p{i}_wonders"] = register_cards(p.wonders)
+    zone_cards["peoples"] = register_cards(gods_state.peoples)
+
+    # Create stacks from shared layout
+    stacks = []
+    for zone_name, sx, sy, spx, spy, face_up in get_table_layout(bottom_player=0):
+        card_ids = zone_cards.get(zone_name, [])
+        stack = kt.Stack(x=sx, y=sy, cards=card_ids, spread_x=spx, spread_y=spy, face_up=face_up)
         stacks.append(stack)
 
-    # Layout from config
-    deck_x = tweak["deck_x"]
-    discard_x = tweak["discard_x"]
-    hand_x = tweak["hand_x"]
-    wonders_x = tweak["wonders_x"]
-    peoples_x = tweak["peoples_x"]
-
-    p1_hand_y = tweak["player1_hand_y"]
-    p1_deck_y = tweak["player1_deck_y"]
-    p1_wonders_y = tweak["player1_wonders_y"]
-
-    p2_hand_y = tweak["player2_hand_y"]
-    p2_deck_y = tweak["player2_deck_y"]
-    p2_wonders_y = tweak["player2_wonders_y"]
-
-    peoples_y = tweak["peoples_y"]
-
-    spread_hand = tweak["hand_spread_x"]
-    spread_wonders = tweak["wonders_spread_x"]
-    spread_pile = tweak["pile_spread_y"]
-
-    # Player 1 areas (bottom)
-    add_cards_from_list(gods_state.players[0].deck, deck_x, p1_deck_y, spread_y=spread_pile, face_up=False)
-    add_cards_from_list(gods_state.players[0].hand, hand_x, p1_hand_y, spread_x=spread_hand)
-    add_cards_from_list(gods_state.players[0].discard, discard_x, p1_deck_y, spread_y=spread_pile)
-    add_cards_from_list(gods_state.players[0].wonders, wonders_x, p1_wonders_y, spread_x=spread_wonders)
-
-    # Player 2 areas (top)
-    add_cards_from_list(gods_state.players[1].deck, deck_x, p2_deck_y, spread_y=spread_pile, face_up=False)
-    add_cards_from_list(gods_state.players[1].hand, hand_x, p2_hand_y, spread_x=spread_hand, face_up=False)
-    add_cards_from_list(gods_state.players[1].discard, discard_x, p2_deck_y, spread_y=spread_pile)
-    add_cards_from_list(gods_state.players[1].wonders, wonders_x, p2_wonders_y, spread_x=spread_wonders)
-
-    # People cards (center)
-    add_cards_from_list(gods_state.peoples, peoples_x, peoples_y, spread_x=spread_wonders)
-
-    return kt.Table_State(cards=cards, stacks=stacks)
+    table_state = kt.Table_State(cards=cards, stacks=stacks)
+    for stack in table_state.stacks:
+        update_card_positions(stack, table_state)
+    return table_state
 
 
 def draw_hud(gods_state: Game_State, table_state: kt.Table_State):

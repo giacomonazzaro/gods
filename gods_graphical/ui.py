@@ -10,6 +10,49 @@ import kitchen_table.models as kt
 
 IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "gods", "cards", "card-images")
 
+
+def get_table_layout(bottom_player: int = 0):
+    """Return stack layout definitions for the card table.
+
+    Returns list of (zone_name, x, y, spread_x, spread_y, face_up) tuples.
+    Zone names: p{i}_deck, p{i}_hand, p{i}_discard, p{i}_wonders, peoples.
+    bottom_player determines which player's cards appear at the bottom.
+    """
+    deck_x = tweak["deck_x"]
+    hand_x = tweak["hand_x"]
+    discard_x = tweak["discard_x"]
+    wonders_x = tweak["wonders_x"]
+    peoples_x = tweak["peoples_x"]
+
+    bottom_hand_y = tweak["player1_hand_y"]
+    bottom_deck_y = tweak["player1_deck_y"]
+    bottom_wonders_y = tweak["player1_wonders_y"]
+
+    top_hand_y = tweak["player2_hand_y"]
+    top_deck_y = tweak["player2_deck_y"]
+    top_wonders_y = tweak["player2_wonders_y"]
+
+    peoples_y = tweak["peoples_y"]
+
+    spread_hand = tweak["hand_spread_x"]
+    spread_wonders = tweak["wonders_spread_x"]
+    spread_pile = tweak["pile_spread_y"]
+
+    bp = f"p{bottom_player}"
+    tp = f"p{1 - bottom_player}"
+
+    return [
+        (f"{bp}_deck",    deck_x,    bottom_deck_y,    0,              spread_pile, False),
+        (f"{bp}_hand",    hand_x,    bottom_hand_y,    spread_hand,    0,           True),
+        (f"{bp}_discard", discard_x, bottom_deck_y,    0,              spread_pile, True),
+        (f"{bp}_wonders", wonders_x, bottom_wonders_y, spread_wonders, 0,           True),
+        (f"{tp}_deck",    deck_x,    top_deck_y,       0,              spread_pile, False),
+        (f"{tp}_hand",    hand_x,    top_hand_y,       spread_hand,    0,           False),
+        (f"{tp}_discard", discard_x, top_deck_y,       0,              spread_pile, True),
+        (f"{tp}_wonders", wonders_x, top_wonders_y,    spread_wonders, 0,           True),
+        ("peoples",       peoples_x, peoples_y,        spread_wonders, 0,           True),
+    ]
+
 OWNER_COLORS = [
     (100, 200, 100, 200),  # Player 0 - green
     (200, 100, 100, 200),  # Player 1 - red

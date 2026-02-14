@@ -12,9 +12,9 @@ from kitchen_table.game_state import update_card_positions
 from gods_online.protocol import send_message, recv_message
 
 from gods_graphical.ui import (
-    get_image_path, point_in_rect, Button, draw_card_power_badge,
-    draw_buttons, draw_card_highlights, draw_player_hud,
-    draw_game_over_screen,
+    get_image_path, get_table_layout, point_in_rect, Button,
+    draw_card_power_badge, draw_buttons, draw_card_highlights,
+    draw_player_hud, draw_game_over_screen,
 )
 
 DEFAULT_PORT = 9999
@@ -71,51 +71,10 @@ def init_table(client: Client_State, game_init_msg: dict):
             draw_callback=draw_power,
         )
 
-    # Layout positions from config
-    deck_x = tweak["deck_x"]
-    hand_x = tweak["hand_x"]
-    discard_x = tweak["discard_x"]
-    wonders_x = tweak["wonders_x"]
-    peoples_x = tweak["peoples_x"]
-
-    bottom_hand_y = tweak["player1_hand_y"]
-    bottom_deck_y = tweak["player1_deck_y"]
-    bottom_wonders_y = tweak["player1_wonders_y"]
-
-    top_hand_y = tweak["player2_hand_y"]
-    top_deck_y = tweak["player2_deck_y"]
-    top_wonders_y = tweak["player2_wonders_y"]
-
-    peoples_y = tweak["peoples_y"]
-
-    spread_hand = tweak["hand_spread_x"]
-    spread_wonders = tweak["wonders_spread_x"]
-    spread_pile = tweak["pile_spread_y"]
-
-    # Perspective: your cards at bottom, opponent at top
-    if client.player_index == 0:
-        bottom_prefix = "p0"
-        top_prefix = "p1"
-    else:
-        bottom_prefix = "p1"
-        top_prefix = "p0"
-
-    # Stack order: bottom deck, hand, discard, wonders; top deck, hand, discard, wonders; peoples
-    stack_defs = [
-        (f"{bottom_prefix}_deck",    deck_x,    bottom_deck_y,    0,              spread_pile, False),
-        (f"{bottom_prefix}_hand",    hand_x,    bottom_hand_y,    spread_hand,    0,           True),
-        (f"{bottom_prefix}_discard", discard_x, bottom_deck_y,    0,              spread_pile, True),
-        (f"{bottom_prefix}_wonders", wonders_x, bottom_wonders_y, spread_wonders, 0,           True),
-        (f"{top_prefix}_deck",       deck_x,    top_deck_y,       0,              spread_pile, False),
-        (f"{top_prefix}_hand",       hand_x,    top_hand_y,       spread_hand,    0,           False),
-        (f"{top_prefix}_discard",    discard_x, top_deck_y,       0,              spread_pile, True),
-        (f"{top_prefix}_wonders",    wonders_x, top_wonders_y,    spread_wonders, 0,           True),
-        ("peoples",                  peoples_x, peoples_y,        spread_wonders, 0,           True),
-    ]
-
+    # Create stacks from shared layout
     stacks = []
     client.zone_order = []
-    for zone_name, sx, sy, spx, spy, face_up in stack_defs:
+    for zone_name, sx, sy, spx, spy, face_up in get_table_layout(bottom_player=client.player_index):
         card_ids = zones.get(zone_name, [])
         stack = kt.Stack(x=sx, y=sy, cards=list(card_ids), spread_x=spx, spread_y=spy, face_up=face_up)
         stacks.append(stack)
