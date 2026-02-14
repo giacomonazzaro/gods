@@ -9,9 +9,4 @@ class Agent_Random:
         pass  # Silent agent
 
     def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
-        if len(actions) == 0:
-            return 0
-        if len(actions) == 1:
-            return 0
-
         return random.randint(0, len(actions) - 1)

@@ -54,11 +54,6 @@ class Agent_MCTS:
         return self.tree[best_child_index].action_index
 
     def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
-        if len(actions) == 0:
-            return 0
-        if len(actions) == 1:
-            return 0
-
         self.player_index = choice.player_index
         selected = self.mcts_search(state, choice, actions)
         return selected

@@ -9,10 +9,6 @@ class Agent_Terminal:
 
     def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
         player = state.players[choice.player_index]
-        if len(actions) == 0:
-            return 0
-        elif len(actions) == 1:
-            return 0
 
         print(f"\n{player.name}, choose an action:")
 

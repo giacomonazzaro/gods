@@ -15,11 +15,6 @@ class Agent_Minimax:
         pass
 
     def choose_action(self, state: Game_State, choice: Choice, actions: list) -> int:
-        if len(actions) == 0:
-            return 0
-        if len(actions) == 1:
-            return 0
-
         is_root = self.player_index is None
         if is_root:
             self.player_index = choice.player_index
