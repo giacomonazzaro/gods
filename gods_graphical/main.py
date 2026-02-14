@@ -105,6 +105,34 @@ def draw_highlighted_cards(highlighted_cards: list, gods_state: Game_State, tabl
 
 # --- Main ---
 
+def run_app(gods_state: Game_State, table_state: kt.Table_State, agent_ui: Agent_UI, player_index = 0):
+    while not window_should_close():
+        if gods_state.game_over:
+            break
+
+        begin_drawing()
+        clear_background(color_from_tuple(tweak["background_color"]))
+        draw_table(table_state)
+        draw_buttons(agent_ui.buttons)
+        draw_highlighted_cards(agent_ui.highlighted_cards, gods_state, table_state)
+        end_drawing()
+
+    # Game over screen
+    if gods_state.game_over:
+        update_stacks(table_state, gods_state, bottom_player=player_index)
+        scores = [compute_player_score(gods_state, 0), compute_player_score(gods_state, 1)]
+        names = [gods_state.players[0].name, gods_state.players[1].name]
+        pi = player_index
+        if scores[pi] > scores[1 - pi]:
+            result_text = "You win!"
+        elif scores[pi] < scores[1 - pi]:
+            result_text = "You lose!"
+        else:
+            result_text = "It's a tie!"
+        draw_game_over_screen(table_state, result_text, names, scores)
+
+    close_window()
+
 def main():
     gods_state = quick_setup()
     table_state = init_table_state(gods_state)
@@ -128,31 +156,7 @@ def main():
     game_thread.start()
 
     # Render loop
-    while not window_should_close():
-        if gods_state.game_over:
-            break
-
-        begin_drawing()
-        clear_background(color_from_tuple(tweak["background_color"]))
-        draw_table(table_state)
-        draw_buttons(agent_ui.buttons)
-        draw_highlighted_cards(agent_ui.highlighted_cards, gods_state, table_state)
-        end_drawing()
-
-    # Game over screen
-    if gods_state.game_over:
-        update_stacks(table_state, gods_state)
-        scores = [compute_player_score(gods_state, 0), compute_player_score(gods_state, 1)]
-        names = [gods_state.players[0].name, gods_state.players[1].name]
-        if scores[0] > scores[1]:
-            result_text = f"{names[0]} wins!"
-        elif scores[1] > scores[0]:
-            result_text = f"{names[1]} wins!"
-        else:
-            result_text = "It's a tie!"
-        draw_game_over_screen(table_state, result_text, names, scores)
-
-    close_window()
+    run_app(gods_state, table_state, agent_ui, player_index=0)
 
 
 if __name__ == "__main__":

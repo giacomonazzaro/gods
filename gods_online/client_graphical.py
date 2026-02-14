@@ -65,33 +65,9 @@ def run_client(host: str = "localhost", port: int = DEFAULT_PORT):
     )
     game_thread.start()
 
-    # Render loop
-    while not window_should_close():
-        if gods_state.game_over:
-            break
+    from gods_graphical.main import run_app
+    run_app(gods_state, table_state, agent_ui, player_index=player_index)
 
-        begin_drawing()
-        clear_background(color_from_tuple(tweak["background_color"]))
-        draw_table(table_state)
-        draw_buttons(agent_ui.buttons)
-        draw_highlighted_cards(agent_ui.highlighted_cards, gods_state, table_state)
-        end_drawing()
-
-    # Game over screen
-    if gods_state.game_over:
-        update_stacks(table_state, gods_state, bottom_player=player_index)
-        scores = [compute_player_score(gods_state, 0), compute_player_score(gods_state, 1)]
-        names = [gods_state.players[0].name, gods_state.players[1].name]
-        pi = player_index
-        if scores[pi] > scores[1 - pi]:
-            result_text = "You win!"
-        elif scores[pi] < scores[1 - pi]:
-            result_text = "You lose!"
-        else:
-            result_text = "It's a tie!"
-        draw_game_over_screen(table_state, result_text, names, scores)
-
-    close_window()
     sock.close()
 
 
