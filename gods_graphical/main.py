@@ -59,6 +59,7 @@ def init_table_state(gods_state: Game_State, bottom_player: int = 0) -> kt.Table
         zone_cards[f"p{i}_discard"] = register_cards(p.discard)
         zone_cards[f"p{i}_wonders"] = register_cards(p.wonders)
     zone_cards["peoples"] = register_cards(gods_state.peoples)
+    zone_cards["shared_deck"] = register_cards(gods_state.shared_deck)
 
     # Create stacks from shared layout
     stacks = []

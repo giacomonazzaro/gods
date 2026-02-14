@@ -41,6 +41,9 @@ def get_table_layout(bottom_player: int = 0):
     bp = f"p{bottom_player}"
     tp = f"p{1 - bottom_player}"
 
+    shared_deck_x = tweak["shared_deck_x"]
+    shared_deck_y = tweak["shared_deck_y"]
+
     return [
         (f"{bp}_deck",    deck_x,    bottom_deck_y,    0,              spread_pile, False),
         (f"{bp}_hand",    hand_x,    bottom_hand_y,    spread_hand,    0,           True),
@@ -51,6 +54,7 @@ def get_table_layout(bottom_player: int = 0):
         (f"{tp}_discard", discard_x, top_deck_y,       0,              spread_pile, True),
         (f"{tp}_wonders", wonders_x, top_wonders_y,    spread_wonders, 0,           True),
         ("peoples",       peoples_x, peoples_y,        spread_wonders, 0,           True),
+        ("shared_deck",   shared_deck_x, shared_deck_y,0             , 0,           True),
     ]
 
 OWNER_COLORS = [
