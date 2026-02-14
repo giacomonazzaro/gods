@@ -28,22 +28,24 @@ tweak = {
     # Stack spread (how much cards offset from each other)
     "hand_spread_x": 160,
     "pile_spread_y": 2,  # Small offset for stacked piles
-    "wonders_spread_x": 110,
+    "wonders_spread_x": 160,
 
     # Drag settings
     "drag_scale": 1.1,  # Cards scale up slightly when dragged
 
     # Gods game layout
     "player1_hand_y": 740,
-    "player1_zones_y": 600,
+    "player1_deck_y": 740,
+    "player1_wonders_y": 500,
     "player2_hand_y": 20,
-    "player2_zones_y": 170,
+    "player2_deck_y": 20,
+    "player2_wonders_y": 250,
     "peoples_y": 380,
-    "deck_x": 50,
-    "discard_x": 170,
-    "wonders_x": 320,
-    "hand_x": 200,
-    "peoples_x": 400,
+    "deck_x": 300,
+    "discard_x": 50,
+    "wonders_x": 800,
+    "hand_x": 600,
+    "peoples_x": 30,
     "button_height": 40,
     "button_width": 120,
     "ui_y": 850,

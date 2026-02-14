@@ -114,6 +114,9 @@ class Game_State:
 
     def opponent(self) -> Player:
         return self.players[1 - self.current_player]
+
+    def peoples_ids(self) -> list[Card_Id]:
+        return [Card_Id(area="people", card_index=i, owner_index=card.owner) for (i, card) in enumerate(self.peoples)]
     
     def wonders(state: Game_State, player_index: int) -> list[Card_Id]:
         return [Card_Id(area="wonders", card_index=i, owner_index=player_index) for i in range(len(state.players[player_index].wonders))]

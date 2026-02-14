@@ -111,25 +111,25 @@ def init_table(client: Client_State, game_init_msg: dict):
             draw_callback=draw_power,
         )
 
-    # Layout positions (same as gods_graphical/main.py)
-    deck_x = 300
-    hand_x = 600
-    discard_x = 50
-    wonders_x = 800
-    peoples_x = 30
+    # Layout positions from config
+    deck_x = tweak["deck_x"]
+    hand_x = tweak["hand_x"]
+    discard_x = tweak["discard_x"]
+    wonders_x = tweak["wonders_x"]
+    peoples_x = tweak["peoples_x"]
 
-    bottom_hand_y = 740
-    bottom_deck_y = 740
-    bottom_wonders_y = 500
+    bottom_hand_y = tweak["player1_hand_y"]
+    bottom_deck_y = tweak["player1_deck_y"]
+    bottom_wonders_y = tweak["player1_wonders_y"]
 
-    top_hand_y = 20
-    top_deck_y = 20
-    top_wonders_y = 250
+    top_hand_y = tweak["player2_hand_y"]
+    top_deck_y = tweak["player2_deck_y"]
+    top_wonders_y = tweak["player2_wonders_y"]
 
-    peoples_y = 380
+    peoples_y = tweak["peoples_y"]
 
     spread_hand = tweak["hand_spread_x"]
-    spread_wonders = 160
+    spread_wonders = tweak["wonders_spread_x"]
     spread_pile = tweak["pile_spread_y"]
 
     # Perspective: your cards at bottom, opponent at top

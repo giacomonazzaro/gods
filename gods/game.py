@@ -311,13 +311,18 @@ def game_loop(game: Game_State, agent: Agent, display: any = display_game_state)
         choice = get_next_choice(game, choices)
         if choice is None:
             break
-        actions = choice.generate_actions(game, choice)
+        
         if display is not None and choice.type == "main":
             display(game)
-        index = agent.choose_action(game, choice, actions)
+        
+        actions = choice.generate_actions(game, choice)
+        if len(actions) == 1:
+            index = 0
+        else:
+            index = agent.choose_action(game, choice, actions)        
+
         new_choices = choice.resolve(game, choice, index)
-        if new_choices:
-            choices.extend(new_choices)
+        choices.extend(new_choices)
 
     if display is not None:
         display(game)
