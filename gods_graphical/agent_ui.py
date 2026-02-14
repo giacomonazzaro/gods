@@ -6,7 +6,7 @@ from kitchen_table.config import tweak
 from pyray import *
 import time
 
-from gods_graphical.ui import point_in_rect, Button
+from gods_graphical.ui import point_in_rect, Button, UI_State
 
 
 def update_stacks(table_state: Table_State, gods_state: Game_State, bottom_player: int = 0):
@@ -36,11 +36,10 @@ def update_stacks(table_state: Table_State, gods_state: Game_State, bottom_playe
 
 
 class Agent_UI(Agent):
-    def __init__(self, table_state: Table_State, bottom_player: int = 0):
+    def __init__(self, table_state: Table_State, ui_state: UI_State, bottom_player: int = 0):
         self.table_state = table_state
+        self.ui_state = ui_state
         self.bottom_player = bottom_player
-        self.highlighted_cards = []
-        self.buttons = []
 
     def message(self, msg: str):
         pass
@@ -64,31 +63,31 @@ class Agent_UI(Agent):
         button_y = tweak["window_height"] - 50
 
         if choice.type == "main":
-            self.buttons = []
+            self.ui_state.buttons = []
             for i, action in enumerate(actions):
                 x = start_x + i * (button_w + gap)
                 button = Button(x, button_y, button_w, button_h, text=str(action))
-                self.buttons.append(button)
+                self.ui_state.buttons.append(button)
 
         elif choice.type == "choose-binary":
-            self.buttons = []
+            self.ui_state.buttons = []
             labels = ["Yes", "No"]
             for i in range(2):
                 x = start_x + i * (button_w + gap)
                 button = Button(x, button_y, button_w, button_h, text=labels[i])
-                self.buttons.append(button)
+                self.ui_state.buttons.append(button)
         elif choice.type == "choose-card":
-            self.highlighted_cards = []
-            self.buttons = []
+            self.ui_state.highlighted_cards = []
+            self.ui_state.buttons = []
             for i, card_id in enumerate(actions):
                 if Card_Id.is_null(card_id):
                     x = start_x
                     button = Button(x, button_y, button_w, button_h, text="Done")
-                    self.buttons.append(button)
+                    self.ui_state.buttons.append(button)
                 else:
                     card = state.get_card(card_id)
                     kt_card = self.table_state.animated_cards[card.id]
-                    self.highlighted_cards.append(card_id)
+                    self.ui_state.highlighted_cards.append(card_id)
 
         selected = -1
         while selected == -1:
@@ -97,18 +96,18 @@ class Agent_UI(Agent):
             click = is_mouse_button_pressed(MouseButton.MOUSE_BUTTON_LEFT)
             if choice.type == "main":
                 for i, action in enumerate(actions):
-                    if self.buttons[i].pressed(mx, my, click):
+                    if self.ui_state.buttons[i].pressed(mx, my, click):
                         selected = i
                         break
             elif choice.type == "choose-binary":
                 for i in range(2):
-                    if self.buttons[i].pressed(mx, my, click):
+                    if self.ui_state.buttons[i].pressed(mx, my, click):
                         selected = i
                         break
             elif choice.type == "choose-card":
                 for i, card_id in enumerate(actions):
                     if Card_Id.is_null(card_id):
-                        if self.buttons[0].pressed(mx, my, click):
+                        if self.ui_state.buttons[0].pressed(mx, my, click):
                             selected = i
                             break
                     else:
@@ -121,6 +120,6 @@ class Agent_UI(Agent):
                             break
 
         update_stacks(self.table_state, state, self.bottom_player)
-        self.highlighted_cards = []
-        self.buttons = []
+        self.ui_state.highlighted_cards = []
+        self.ui_state.buttons = []
         return selected

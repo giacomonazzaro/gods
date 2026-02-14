@@ -17,7 +17,7 @@ from kitchen_table.rendering import draw_table, color_from_tuple
 
 from gods_graphical.agent_ui import Agent_UI, update_stacks
 from gods_graphical.ui import (
-    get_image_path, get_table_layout, draw_card_power_badge, draw_buttons,
+    UI_State, get_image_path, get_table_layout, draw_card_power_badge, draw_buttons,
     draw_card_highlights, draw_player_hud, draw_people_ownership_bars,
     draw_final_round_indicator, draw_game_over_screen,
 )
@@ -105,8 +105,7 @@ def draw_highlighted_cards(highlighted_cards: list, gods_state: Game_State, tabl
 
 
 # --- Main ---
-# TODO(giacomo): agent_ui should not be passed here, we only need ui data like buttons and highlighted cards.
-def run_app(gods_state: Game_State, table_state: kt.Table_State, agent_ui: Agent_UI, player_index = 0):
+def run_app(gods_state: Game_State, table_state: kt.Table_State, ui_state: UI_State, player_index = 0):
     while not window_should_close():
         if gods_state.game_over:
             break
@@ -114,8 +113,8 @@ def run_app(gods_state: Game_State, table_state: kt.Table_State, agent_ui: Agent
         begin_drawing()
         clear_background(color_from_tuple(tweak["background_color"]))
         draw_table(table_state)
-        draw_buttons(agent_ui.buttons)
-        draw_highlighted_cards(agent_ui.highlighted_cards, gods_state, table_state)
+        draw_buttons(ui_state.buttons)
+        draw_highlighted_cards(ui_state.highlighted_cards, gods_state, table_state)
         end_drawing()
 
     # Game over screen
@@ -162,10 +161,10 @@ def main(player_index: int, seed: int, sock):
     set_target_fps(tweak["target_fps"])
 
     # Agents
-    agent_ui: Agent_UI | Agent_Local_Online = Agent_UI(table_state, bottom_player=player_index)
+    ui_state = UI_State()
+    agent_ui = Agent_UI(table_state, ui_state, bottom_player=player_index)
     if sock is not None:
         # Instruct UI to send messages
-        agent_ui = Agent_Local_Online(agent_ui, sock)
         agent_opponent = Agent_Remote(sock)
     else:
         agent_opponent = Agent_Minimax_Stochastic()
@@ -181,7 +180,7 @@ def main(player_index: int, seed: int, sock):
     )
     game_thread.start()
 
-    run_app(gods_state, table_state, agent_ui, player_index=player_index)
+    run_app(gods_state, table_state, ui_state, player_index=player_index)
 
 
 if __name__ == "__main__":

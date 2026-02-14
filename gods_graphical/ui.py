@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pyray import *
 
@@ -83,6 +83,12 @@ class Button:
         if not click:
             return False
         return point_in_rect(mx, my, self.x, self.y, self.width, self.height)
+
+
+@dataclass
+class UI_State:
+    buttons: list[Button] = field(default_factory=list)
+    highlighted_cards: list = field(default_factory=list)
 
 
 # --- Card rendering ---
