@@ -4,7 +4,6 @@ tweak = {
     "window_height": int(1000 * 0.8),
     "window_title": "Gods",
     "target_fps": 60,
-    "background_color": (40, 44, 52, 255),
 
     # Card dimensions
     "card_width": 150,
@@ -29,19 +28,6 @@ tweak = {
     "hand_spread_x": 160,
     "pile_spread_y": 2,  # Small offset for stacked piles
     "wonders_spread_x": 160,
-
-    # Drag settings
-    "drag_scale": 1.1,  # Cards scale up slightly when dragged
-
-    # UI element sizes
-    "button_height": 40,
-    "button_width": 120,
-
-    # Card type colors (backgrounds)
-    "color_green": (180, 220, 180, 255),
-    "color_blue": (180, 200, 230, 255),
-    "color_red": (230, 180, 180, 255),
-    "color_yellow": (240, 230, 180, 255),
 
     # UI colors
     "button_color": (70, 130, 180, 255),
