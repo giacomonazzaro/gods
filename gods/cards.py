@@ -168,8 +168,8 @@ class Eruption(Card):
             power = effective_power(state, eruption)
             return all_combinations(eruption.get_card_selection(state), power, up_to=True)
         def on_chosen(state, combination):
-            for card_id in combination:
-                card = state.get_card(card_id)
+            cards = [state.get_card(card_id) for card_id in combination]
+            for card in cards:
                 idx = state.players[card.owner].wonders.index(card)
                 shuffle_card_into_deck(state, Card_Id(area="wonders", card_index=idx, owner_index=card.owner))
         return [make_choose_cards_choice(game.current_player, get_combos, on_chosen)]
@@ -244,8 +244,8 @@ class Flashback(Card):
             return all_combinations(flashback.get_card_selection(state), effective_power(state, flashback), up_to=True)
         def on_chosen(state, combination):
             player = state.players[state.current_player]
-            for card_id in combination:
-                card = state.get_card(card_id)
+            cards = [state.get_card(card_id) for card_id in combination]
+            for card in cards:
                 player.discard.remove(card)
                 player.hand.append(card)
         return [make_choose_cards_choice(game.current_player, get_combos, on_chosen)]
@@ -306,8 +306,8 @@ class Time_Warp(Card):
         def get_combos(state):
             return all_combinations(time_warp.get_card_selection(state), effective_power(state, time_warp), up_to=True)
         def on_chosen(state, combination):
-            for card_id in combination:
-                card = state.get_card(card_id)
+            cards = [state.get_card(card_id) for card_id in combination]
+            for card in cards:
                 state.players[card.owner].wonders.remove(card)
                 card.counters = 0
                 state.players[card.owner].hand.append(card)

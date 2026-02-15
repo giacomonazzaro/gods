@@ -31,20 +31,13 @@ def draw_card(game: Game_State, player_id: int, replacement_effects=True) -> lis
 
 
 def discard_cards(game: Game_State, card_ids: list[Card_Id]) -> None:
-    """Discard a card from a player's hand."""
+    """Discard cards from players' hands."""
     assert all([card_id.area == "hand" for card_id in card_ids])
-    # player_id = card_id.owner_index
-    # player = game.players[player_id]
-    # assert card_id.area == "hand"
-
     cards = [game.get_card(card_id) for card_id in card_ids]
     for i, card in enumerate(cards):
         player = game.players[card_ids[i].owner_index]
         player.hand.remove(card)
         player.discard.append(card)
-
-    for w in player.wonders:
-        w.on_discard(game, card)
 
 
 
