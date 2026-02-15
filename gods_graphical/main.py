@@ -76,11 +76,18 @@ def init_table_state(gods_state: Game_State, bottom_player: int = 0) -> kt.Table
 
 
 def draw_hud(gods_state: Game_State, table_state: kt.Table_State, bottom_player: int = 0):
+    H = tweak["window_height"]
+    h = tweak["card_height"]
+    margin = 20
+    bottom_wonders_y = H - h - margin - h - margin
+    opponent_shift = int(h * 0.65)
+    top_wonders_y = H - bottom_wonders_y - h - opponent_shift
+
     for i in range(2):
         player = gods_state.players[i]
         score = compute_player_score(gods_state, i)
         is_current = i == gods_state.current_player
-        hud_y = 650 if i == bottom_player else 260
+        hud_y = (bottom_wonders_y - 40) if i == bottom_player else top_wonders_y
         draw_player_hud(player.name, score, len(player.deck), is_current, hud_y)
 
     # People ownership

@@ -1,7 +1,7 @@
 tweak = {
     # Window settings
-    "window_width": 1600,
-    "window_height": 1000,
+    "window_width": int(1600 * 0.8),
+    "window_height": int(1000 * 0.8),
     "window_title": "Gods",
     "target_fps": 60,
     "background_color": (40, 44, 52, 255),
@@ -33,24 +33,9 @@ tweak = {
     # Drag settings
     "drag_scale": 1.1,  # Cards scale up slightly when dragged
 
-    # Gods game layout
-    "player1_hand_y": 740,
-    "player1_deck_y": 740,
-    "player1_wonders_y": 500,
-    "player2_hand_y": 20,
-    "player2_deck_y": 20,
-    "player2_wonders_y": 260,
-    "deck_x": 300,
-    "discard_x": 50,
-    "wonders_x": 550,
-    "hand_x": 550,
-    "peoples_x": 30,
-    "peoples_y": 380,
-    "shared_deck_x": -150,
-    "shared_deck_y": 380,
+    # UI element sizes
     "button_height": 40,
     "button_width": 120,
-    "ui_y": 850,
 
     # Card type colors (backgrounds)
     "color_green": (180, 220, 180, 255),

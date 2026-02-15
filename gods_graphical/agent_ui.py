@@ -50,8 +50,8 @@ class Agent_UI(Agent):
         User picks cards one at a time; remaining valid combinations are narrowed down."""
         button_w = 140
         button_h = 45
-        button_x = (tweak["window_width"] - button_w) // 2
-        button_y = tweak["window_height"] - 50
+        button_x = (get_screen_width() - button_w) // 2
+        button_y = get_screen_height() - 50
 
         remaining = list(range(len(actions)))
         picked_cards = []
@@ -129,8 +129,8 @@ class Agent_UI(Agent):
         button_h = 45
         gap = 20
         total_width = count * button_w + (count - 1) * gap
-        start_x = (tweak["window_width"] - total_width) // 2
-        button_y = tweak["window_height"] - 50
+        start_x = (get_screen_width() - total_width) // 2
+        button_y = get_screen_height() - 50
 
         if choice.type == "main":
             self.ui_state.buttons = []
