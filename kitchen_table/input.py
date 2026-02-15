@@ -144,3 +144,15 @@ def update_input(state: Table_State) -> None:
             handle_rotate_card(state, clockwise=False)
         else:
             handle_rotate_card(state, clockwise=True)
+
+    # Handle card zoom
+    if is_key_down(KeyboardKey.KEY_SPACE):
+        mx = get_mouse_x()
+        my = get_mouse_y()
+        result = find_card_at(mx, my, state)
+        if result:
+            state.zoomed_card_id = result[0]
+        else:
+            state.zoomed_card_id = -1
+    else:
+        state.zoomed_card_id = -1

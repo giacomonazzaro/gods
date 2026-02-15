@@ -310,6 +310,31 @@ def animate(cards, state, dt: float = 0.1) -> None:
         cards[selected_card_id].x = state.cards[selected_card_id].x
         cards[selected_card_id].y = state.cards[selected_card_id].y
 
+def draw_zoomed_card(card: Card) -> None:
+    """Draw a card fullscreen as a zoom preview."""
+    screen_w = get_screen_width()
+    screen_h = get_screen_height()
+
+    # Dim background
+    draw_rectangle(0, 0, screen_w, screen_h, Color(0, 0, 0, 160))
+
+    # Scale card to fit screen with some margin
+    card_w = tweak["card_width"]
+    card_h = tweak["card_height"]
+    margin = 40
+    scale = min((screen_w - 2 * margin) / card_w, (screen_h - 2 * margin) / card_h)
+
+    # Center on screen
+    cx = (screen_w - card_w * scale) / 2
+    cy = (screen_h - card_h * scale) / 2
+
+    rl_push_matrix()
+    rl_translatef(cx, cy, 0)
+    rl_scalef(scale, scale, 1)
+    draw_card_content(card, face_up=True)
+    rl_pop_matrix()
+
+
 from copy import deepcopy
 
 def draw_table(table_state: Table_State) -> None:
@@ -344,3 +369,7 @@ def draw_table(table_state: Table_State) -> None:
 
     if table_state.draw_callback is not None:
         table_state.draw_callback(table_state)
+
+    # Draw zoomed card on top of everything
+    if table_state.zoomed_card_id >= 0:
+        draw_zoomed_card(table_state.cards[table_state.zoomed_card_id])

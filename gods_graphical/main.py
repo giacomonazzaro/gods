@@ -14,6 +14,7 @@ import kitchen_table.models as kt
 from kitchen_table.game_state import update_card_positions
 from kitchen_table.config import tweak
 from kitchen_table.rendering import draw_table, draw_background
+from kitchen_table.input import find_card_at
 
 from gods_graphical.agent_ui import Agent_UI, update_stacks
 from gods_graphical.ui import (
@@ -143,6 +144,14 @@ def play(gods_state: Game_State, table_state: kt.Table_State, ui_state: UI_State
     while not window_should_close():
         if gods_state.game_over:
             break
+
+        # Handle card zoom
+        if is_key_down(KeyboardKey.KEY_SPACE):
+            mx, my = get_mouse_x(), get_mouse_y()
+            result = find_card_at(mx, my, table_state)
+            table_state.zoomed_card_id = result[0] if result else -1
+        else:
+            table_state.zoomed_card_id = -1
 
         begin_drawing()
         draw_background()

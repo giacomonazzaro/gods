@@ -42,3 +42,4 @@ class Table_State:
 
     animated_cards: list[Card] = None
     draw_callback: callable | None = None
+    zoomed_card_id: int = -1
