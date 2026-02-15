@@ -197,7 +197,7 @@ if __name__ == "__main__":
         agent_opponent = Agent_Remote(sock)
     else:
         agent_local = agent_ui
-        agent_opponent = agent_ui
+        agent_opponent = Agent_Minimax_Stochastic()
 
     play(gods_state, table_state, ui_state, agent_local, agent_opponent, player_index)
     
