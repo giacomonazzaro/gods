@@ -1,33 +1,39 @@
 from __future__ import annotations
+
 import random
 import socket
 import threading
 from typing import Annotated
 
-from pyray import *
-import typer
 import stun
+import typer
+from pyray import *
 
-from gods.models import Game_State, effective_power
-from gods.setup import quick_setup
-from gods.game import game_loop, compute_player_score
+import kitchen_table.models as kt
 from gods.agents.duel import Agent_Duel
 from gods.agents.minimax_stochastic import Agent_Minimax_Stochastic
-
-from gods_online import protocol
-from gods_online.agent_remote import Agent_Local_Online, Agent_Remote
-import kitchen_table.models as kt
-from kitchen_table.game_state import update_card_positions
-from kitchen_table.config import tweak
-from kitchen_table.rendering import draw_table, draw_background
-from kitchen_table.input import find_card_at
-
+from gods.game import compute_player_score, game_loop
+from gods.models import Game_State, effective_power
+from gods.setup import quick_setup
 from gods_graphical.agent_ui import Agent_UI, update_stacks
 from gods_graphical.ui import (
-    UI_State, get_image_path, get_table_layout, draw_card_power_badge, draw_buttons,
-    draw_card_highlights, draw_player_hud, draw_people_ownership_bars,
-    draw_final_round_indicator, draw_game_over_screen,
+    UI_State,
+    draw_buttons,
+    draw_card_highlights,
+    draw_card_power_badge,
+    draw_final_round_indicator,
+    draw_game_over_screen,
+    draw_people_ownership_bars,
+    draw_player_hud,
+    get_image_path,
+    get_table_layout,
 )
+from gods_online import protocol
+from gods_online.agent_remote import Agent_Local_Online, Agent_Remote
+from kitchen_table.config import tweak
+from kitchen_table.game_state import update_card_positions
+from kitchen_table.input import find_card_at
+from kitchen_table.rendering import draw_background, draw_table
 
 app = typer.Typer()
 
