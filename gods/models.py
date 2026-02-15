@@ -36,7 +36,7 @@ class Card:
     def on_play(self, game: Game_State, card_played: Card) -> None: pass
     def on_destroy(self, game: Game_State, card_destroyed: Card) -> None: pass
     def on_restore(self, game: Game_State, card_destroyed: Card) -> None: pass
-    def on_discard(self, game: Game_State, card_discarded: Card) -> None: pass
+    def on_discard(self, game: Game_State, card_discarded: Card) ->  list[Choice]: return []
     def on_pass(self, game: Game_State) -> list[Choice]: return []
     def on_turn_end(self, game: Game_State) -> list[Choice]: return []
     def on_turn_start(self, game: Game_State) -> list[Choice]: return []

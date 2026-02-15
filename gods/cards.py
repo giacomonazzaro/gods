@@ -104,10 +104,24 @@ class Light(Card):
 class Moon(Card):
     def draw_back_up(self, game: Game_State) -> list[Choice]:
         player = game.players[self.owner]
-        choices = []
-        while len(player.hand) <= effective_power(game, self):
-            choices.extend(draw_card(game, self.owner))
-        return choices
+        if not player.deck or len(player.hand) >= effective_power(game, self):
+            return []
+        return draw_card(game, self.owner)
+
+    def on_turn_start(self, game: Game_State) -> list[Choice]:
+        return self.draw_back_up(game)
+
+    def on_turn_end(self, game: Game_State) -> list[Choice]:
+        return self.draw_back_up(game)
+
+    def on_draw(self, game: Game_State) -> list[Choice]:
+        return self.draw_back_up(game)
+    
+    def on_play(self, game: Game_State, card_played: Card) -> None:
+        return self.draw_back_up(game)
+    
+    def on_discard(self, game: Game_State, card_discarded: Card) -> list[Choice]:
+        return self.draw_back_up(game)
 
 @dataclass
 class War(Card):
