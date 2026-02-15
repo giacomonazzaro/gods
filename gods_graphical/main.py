@@ -1,7 +1,9 @@
 from __future__ import annotations
 import threading
+from typing import Annotated
 
 from pyray import *
+import typer
 
 from gods.models import Game_State, effective_power
 from gods.setup import quick_setup
@@ -22,6 +24,8 @@ from gods_graphical.ui import (
     draw_card_highlights, draw_player_hud, draw_people_ownership_bars,
     draw_final_round_indicator, draw_game_over_screen,
 )
+
+app = typer.Typer()
 
 
 def init_table_state(gods_state: Game_State, bottom_player: int = 0) -> kt.Table_State:
@@ -176,11 +180,13 @@ def play(gods_state: Game_State, table_state: kt.Table_State, ui_state: UI_State
 
     close_window()
 
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 2:
-        host = sys.argv[1] if len(sys.argv) > 1 else "localhost"
-        port = int(sys.argv[2]) if len(sys.argv) > 2 else 9999
+@app.command()
+def main(
+    host: Annotated[str | None, typer.Option("-h", "--host", help="Server host to connect to for online play")] = None,
+    port: Annotated[int, typer.Option("-p", "--port", help="Server port to connect to for online play")] = 9999,
+):
+    if host:
+        print("Connecting to online game...", host)
         player_index, seed, sock = setup_online_game(host, port)
     else:
         player_index = 0
@@ -203,3 +209,6 @@ if __name__ == "__main__":
     
     if sock is not None:
         sock.close()
+
+if __name__ == "__main__":
+    app()
