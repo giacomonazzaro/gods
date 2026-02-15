@@ -63,9 +63,9 @@ def init_table_state(gods_state: Game_State, bottom_player: int = 0) -> kt.Table
 
     # Create stacks from shared layout
     stacks = []
-    for zone_name, sx, sy, spx, spy, face_up in get_table_layout(bottom_player=bottom_player):
+    for zone_name, sx, sy, sw, spx, spy, face_up in get_table_layout(bottom_player=bottom_player):
         card_ids = zone_cards.get(zone_name, [])
-        stack = kt.Stack(x=sx, y=sy, cards=card_ids, spread_x=spx, spread_y=spy, face_up=face_up)
+        stack = kt.Stack(x=sx, y=sy, cards=card_ids, width=sw, spread_x=spx, spread_y=spy, face_up=face_up, name=zone_name)
         stacks.append(stack)
 
     table_state = kt.Table_State(cards=cards, stacks=stacks)
@@ -188,7 +188,7 @@ if __name__ == "__main__":
         agent_opponent = Agent_Remote(sock)
     else:
         agent_local = agent_ui
-        agent_opponent = Agent_Minimax_Stochastic()
+        agent_opponent = agent_ui
 
     play(gods_state, table_state, ui_state, agent_local, agent_opponent, player_index)
     

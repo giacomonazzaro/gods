@@ -43,18 +43,19 @@ def get_table_layout(bottom_player: int = 0):
 
     shared_deck_x = tweak["shared_deck_x"]
     shared_deck_y = tweak["shared_deck_y"]
-
+    w = tweak["card_width"]
+    h = tweak["card_height"]
     return [
-        (f"{bp}_deck",    deck_x,    bottom_deck_y,    0,              spread_pile, False),
-        (f"{bp}_hand",    hand_x,    bottom_hand_y,    spread_hand,    0,           True),
-        (f"{bp}_discard", discard_x, bottom_deck_y,    0,              spread_pile, True),
-        (f"{bp}_wonders", wonders_x, bottom_wonders_y, spread_wonders, 0,           True),
-        (f"{tp}_deck",    deck_x,    top_deck_y,       0,              spread_pile, False),
-        (f"{tp}_hand",    hand_x,    top_hand_y,       spread_hand,    0,           False),
-        (f"{tp}_discard", discard_x, top_deck_y,       0,              spread_pile, True),
-        (f"{tp}_wonders", wonders_x, top_wonders_y,    spread_wonders, 0,           True),
-        ("peoples",       peoples_x, peoples_y,        spread_wonders, 0,           True),
-        ("shared_deck",   shared_deck_x, shared_deck_y,0             , 0,           True),
+        (f"{bp}_deck",    deck_x,    bottom_deck_y,     w, 0,              spread_pile, False),
+        (f"{bp}_hand",    hand_x,    bottom_hand_y,     800, spread_hand,    0,           True),
+        (f"{bp}_discard", discard_x, bottom_deck_y,     w, 0,              spread_pile, True),
+        (f"{bp}_wonders", wonders_x, bottom_wonders_y,  800, spread_wonders, 0,           True),
+        (f"{tp}_deck",    deck_x,    top_deck_y,        w, 0,              spread_pile, False),
+        (f"{tp}_hand",    hand_x,    top_hand_y,        800, spread_hand,    0,           not False),
+        (f"{tp}_discard", discard_x, top_deck_y,        w, 0,              spread_pile, True),
+        (f"{tp}_wonders", wonders_x, top_wonders_y,     800, spread_wonders, 0,           True),
+        ("peoples",       peoples_x, peoples_y,         3 * (w+10), spread_wonders, 0,           True),
+        ("shared_deck",   shared_deck_x, shared_deck_y, w, 0,              0,           True),
     ]
 
 OWNER_COLORS = [

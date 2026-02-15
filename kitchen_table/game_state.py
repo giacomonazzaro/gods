@@ -7,12 +7,6 @@ from kitchen_table.config import tweak
 def create_card(id: str, title: str, description: str = "") -> Card:
     return Card(id=id, title=title, description=description)
 
-
-def create_stack(x: float, y: float, spread_x: float = 0, spread_y: float = 0,
-                 face_up: bool = True) -> Stack:
-    return Stack(x=x, y=y, spread_x=spread_x, spread_y=spread_y, face_up=face_up)
-
-
 def add_card_to_stack(card_id: int, stack: Stack, state: Table_State) -> None:
     stack.cards.append(card_id)
     update_card_positions(stack, state)
@@ -28,10 +22,18 @@ def remove_card_from_stack(card_id: int, stack: Stack, state: Table_State) -> in
 
 def update_card_positions(stack: Stack, state: Table_State) -> None:
     """Update x,y positions of all cards in a stack based on spread values."""
+    n = len(stack.cards)
+    spread_x = stack.spread_x
+    spread_y = stack.spread_y
+    if n > 1 and stack.width > 0 and spread_x != 0:
+        card_width = tweak["card_width"]
+        total_width = (n - 1) * spread_x + card_width
+        if total_width > stack.width:
+            spread_x = (stack.width - card_width) / (n - 1)
     for i, card_id in enumerate(stack.cards):
         card = state.cards[card_id]
-        card.x = stack.x + i * stack.spread_x
-        card.y = stack.y + i * stack.spread_y
+        card.x = stack.x + i * spread_x
+        card.y = stack.y + i * spread_y
 
 
 def move_card_to_stack(card_id: int, from_stack: Stack, to_stack: Stack, state: Table_State) -> None:
@@ -81,9 +83,9 @@ def create_example_table_state() -> Table_State:
     state = Table_State()
 
     # Create a few stacks at different positions
-    stack1 = create_stack(100, 300, spread_y=tweak["pile_spread_y"], face_up=False)
-    stack2 = create_stack(400, 550, spread_x=tweak["hand_spread_x"])
-    stack3 = create_stack(1000, 300, spread_y=tweak["pile_spread_y"])
+    stack1 = Stack(100, 300, width = 300, spread_y=tweak["pile_spread_y"], spread_x=10, face_up=False)
+    stack2 = Stack(400, 550, width = 500, spread_x=tweak["hand_spread_x"])
+    stack3 = Stack(1000, 300, width = 600, spread_y=tweak["pile_spread_y"])
 
     state.stacks = [stack1, stack2, stack3]
 

@@ -271,7 +271,7 @@ def draw_stack(stack: Stack, state: Table_State) -> None:
         draw_card(card, face_up=stack.face_up)
 
 
-def draw_stack_placeholder(stack: Stack, label: str) -> None:
+def draw_stack_placeholder(stack: Stack) -> None:
     """Draw an empty stack placeholder with label."""
     w = tweak["card_width"]
     h = tweak["card_height"]
@@ -279,11 +279,12 @@ def draw_stack_placeholder(stack: Stack, label: str) -> None:
 
     # Dashed outline placeholder
     draw_rectangle_rounded_lines_ex(
-        Rectangle(stack.x, stack.y, w, h), r / min(w, h), 8, 1,
+        Rectangle(stack.x, stack.y, stack.width, h), r / min(w, h), 8, 1,
         Color(100, 100, 100, 100)
     )
 
     # Label
+    label = stack.name
     text_width = measure_text(label, 14)
     draw_text(
         label,
@@ -320,9 +321,8 @@ def draw_table(table_state: Table_State) -> None:
     drag = table_state.drag_state
 
     # Draw stack placeholders for empty stacks
-    for stack in table_state.stacks:
-        if not stack.cards:
-            draw_stack_placeholder(stack, "")
+    for i, stack in enumerate(table_state.stacks):
+        draw_stack_placeholder(stack)
 
     # Draw stacks (excluding dragged card)
     for stack in table_state.stacks:
