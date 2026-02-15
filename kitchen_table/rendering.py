@@ -1,7 +1,43 @@
 from __future__ import annotations
+import os
 from pyray import *
+import raylib as rl
 from kitchen_table.models import Card, Stack, Table_State
 from kitchen_table.config import tweak
+
+# Background shader
+_background_shader = None
+_background_time_loc = -1
+_background_resolution_loc = -1
+
+
+def _load_background_shader():
+    global _background_shader, _background_time_loc, _background_resolution_loc
+    shader_path = os.path.join(os.path.dirname(__file__), "background.fs")
+    with open(shader_path) as f:
+        fs_code = f.read()
+    _background_shader = load_shader_from_memory(rl.ffi.NULL, fs_code.encode())
+    _background_time_loc = get_shader_location(_background_shader, "u_time")
+    _background_resolution_loc = get_shader_location(_background_shader, "u_resolution")
+
+
+def draw_background():
+    global _background_shader
+    if _background_shader is None:
+        _load_background_shader()
+
+    t = rl.ffi.new("float *", get_time())
+    rl.SetShaderValue(_background_shader, _background_time_loc, t,
+                      rl.SHADER_UNIFORM_FLOAT)
+
+    res = rl.ffi.new("float[2]", [get_screen_width(), get_screen_height()])
+    rl.SetShaderValue(_background_shader, _background_resolution_loc, res,
+                      rl.SHADER_UNIFORM_VEC2)
+
+    begin_shader_mode(_background_shader)
+    draw_rectangle(0, 0, get_screen_width(), get_screen_height(), WHITE)
+    end_shader_mode()
+
 
 # Texture cache to avoid reloading images
 _texture_cache: dict[str, Texture2D] = {}

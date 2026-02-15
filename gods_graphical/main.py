@@ -13,7 +13,7 @@ from gods_online.agent_remote import Agent_Local_Online, Agent_Remote
 import kitchen_table.models as kt
 from kitchen_table.game_state import update_card_positions
 from kitchen_table.config import tweak
-from kitchen_table.rendering import draw_table, color_from_tuple
+from kitchen_table.rendering import draw_table, draw_background
 
 from gods_graphical.agent_ui import Agent_UI, update_stacks
 from gods_graphical.ui import (
@@ -145,7 +145,7 @@ def play(gods_state: Game_State, table_state: kt.Table_State, ui_state: UI_State
             break
 
         begin_drawing()
-        clear_background(color_from_tuple(tweak["background_color"]))
+        draw_background()
         draw_table(table_state)
         draw_buttons(ui_state.buttons)
         draw_highlighted_cards(ui_state.highlighted_cards, gods_state, table_state)
