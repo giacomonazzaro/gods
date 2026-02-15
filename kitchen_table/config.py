@@ -36,10 +36,10 @@ tweak = {
     # Gods game layout
     "player1_hand_y": 740,
     "player1_deck_y": 740,
-    "player1_wonders_y": 550,
+    "player1_wonders_y": 500,
     "player2_hand_y": 20,
     "player2_deck_y": 20,
-    "player2_wonders_y": 250,
+    "player2_wonders_y": 260,
     "deck_x": 300,
     "discard_x": 50,
     "wonders_x": 550,

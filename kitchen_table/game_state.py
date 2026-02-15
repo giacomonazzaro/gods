@@ -25,15 +25,20 @@ def update_card_positions(stack: Stack, state: Table_State) -> None:
     n = len(stack.cards)
     spread_x = stack.spread_x
     spread_y = stack.spread_y
+    card_width = tweak["card_width"]
     if n > 1 and stack.width > 0 and spread_x != 0:
-        card_width = tweak["card_width"]
         total_width = (n - 1) * spread_x + card_width
         if total_width > stack.width:
             spread_x = (stack.width - card_width) / (n - 1)
+    total_spread_x = (n - 1) * spread_x if n > 1 else 0
+    total_spread_y = (n - 1) * spread_y if n > 1 else 0
+    mid_x = stack.x + stack.width / 2 if stack.width > 0 else stack.x
+    start_x = mid_x - (total_spread_x + card_width) / 2
+    start_y = stack.y - total_spread_y / 2
     for i, card_id in enumerate(stack.cards):
         card = state.cards[card_id]
-        card.x = stack.x + i * spread_x
-        card.y = stack.y + i * spread_y
+        card.x = start_x + i * spread_x
+        card.y = start_y + i * spread_y
 
 
 def move_card_to_stack(card_id: int, from_stack: Stack, to_stack: Stack, state: Table_State) -> None:
