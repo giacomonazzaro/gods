@@ -1,29 +1,39 @@
 from __future__ import annotations
+
+import random
+import socket
 import threading
 from typing import Annotated
 
-from pyray import *
+import stun
 import typer
+from pyray import *
 
-from gods.models import Game_State, effective_power
-from gods.setup import quick_setup
-from gods.game import game_loop, compute_player_score
+import kitchen_table.models as kt
 from gods.agents.duel import Agent_Duel
 from gods.agents.minimax_stochastic import Agent_Minimax_Stochastic
-
-from gods_online.agent_remote import Agent_Local_Online, Agent_Remote
-import kitchen_table.models as kt
-from kitchen_table.game_state import update_card_positions
-from kitchen_table.config import tweak
-from kitchen_table.rendering import draw_table, draw_background
-from kitchen_table.input import find_card_at
-
+from gods.game import compute_player_score, game_loop
+from gods.models import Game_State, effective_power
+from gods.setup import quick_setup
 from gods_graphical.agent_ui import Agent_UI, update_stacks
 from gods_graphical.ui import (
-    UI_State, get_image_path, get_table_layout, draw_card_power_badge, draw_buttons,
-    draw_card_highlights, draw_player_hud, draw_people_ownership_bars,
-    draw_final_round_indicator, draw_game_over_screen,
+    UI_State,
+    draw_buttons,
+    draw_card_highlights,
+    draw_card_power_badge,
+    draw_final_round_indicator,
+    draw_game_over_screen,
+    draw_people_ownership_bars,
+    draw_player_hud,
+    get_image_path,
+    get_table_layout,
 )
+from gods_online import protocol
+from gods_online.agent_remote import Agent_Local_Online, Agent_Remote
+from kitchen_table.config import tweak
+from kitchen_table.game_state import update_card_positions
+from kitchen_table.input import find_card_at
+from kitchen_table.rendering import draw_background, draw_table
 
 app = typer.Typer()
 
@@ -119,17 +129,28 @@ def draw_highlighted_cards(highlighted_cards: list, gods_state: Game_State, tabl
     
 
 def setup_online_game(host: str = "localhost", port: int = 9999):
-    import socket
-    from gods_online.protocol import recv_message
+    """Send or receive init"""
+    
+    friend_ip = typer.prompt("What is your friend's public IP address")
+    friend_port = typer.prompt("What is your friend's public port", type=int)
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        typer.echo(f"Connecting to {friend_ip}:{friend_port}...")
+        sock.connect((friend_ip, friend_port))
+        msg = protocol.recv_message(sock)
+        seed = msg["seed"]
+        player_index = msg["player_index"]
+    except (ConnectionRefusedError, OSError):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("0.0.0.0", port))
+        sock.listen(1)
+        conn, addr = sock.accept()
+        typer.echo(f"Incoming connection accepted from {addr[0]}! (You are the Host)")
+        sock = conn
+        seed = random.randint(0, 2**32 - 1)
+        player_index = 0
+        protocol.send_message(sock, {"type": "init", "seed": seed, "player_index": 1})
 
-    # Connect and receive init
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((host, port))
-    print(f"Connected to {host}:{port}")
-
-    msg = recv_message(sock)
-    seed = msg["seed"]
-    player_index = msg["player_index"]
     print(f"You are Player {player_index + 1}. Seed: {seed}")
     return player_index, seed, sock
 
@@ -188,18 +209,34 @@ def play(gods_state: Game_State, table_state: kt.Table_State, ui_state: UI_State
     close_window()
 
 @app.command()
-def main(
-    host: Annotated[str | None, typer.Option("-h", "--host", help="Server host to connect to for online play")] = None,
-    port: Annotated[int, typer.Option("-p", "--port", help="Server port to connect to for online play")] = 9999,
+def p2p(
+    stun_host: Annotated[str | None, typer.Option("-h", "--host", help="STUN host to use for discovering public IP")] = "stun.l.google.com",
+    stun_port: Annotated[int, typer.Option("-p", "--port", help="STUN port to use for discovering public IP")] = 19302,
 ):
-    if host:
-        print("Connecting to online game...", host)
-        player_index, seed, sock = setup_online_game(host, port)
+    if stun_host == "local":
+        typer.echo("You're playing in local mode. Getting your local IP address...")
+        your_ip = socket.gethostbyname_ex(socket.gethostname())[-1][-1]
+        typer.echo(f"Your local IP address is: {your_ip}\nMake sure your friend is on the same network and use this IP to connect.")
+        your_port = typer.prompt("Enter the port to use for the game", type=int)
     else:
-        player_index = 0
-        seed = None
-        sock = None
+        _, your_ip, your_port = stun.get_ip_info(
+            stun_host=stun_host,
+            stun_port=stun_port
+        )
+    if your_ip is None or your_port is None:
+        typer.echo("Could not discover your public IP and port using STUN. Please check your network configuration and try again.")
+        raise typer.Exit(1)
+
+    typer.echo(f"Your public IP is: {your_ip}\nYour external port is: {your_port}\nShare this with your friend to connect directly, or use it to set up port forwarding on your router if needed.")
+    player_index, seed, sock = setup_online_game(your_ip, your_port)
     
+    main(player_index=player_index, seed=seed, sock=sock)
+
+@app.command()
+def agent():
+    main(player_index=0, seed=None, sock=None)
+
+def main(player_index: int = 0, seed: int | None = None, sock: socket.socket | None = None):
     gods_state = quick_setup(seed)
     table_state = init_table_state(gods_state, bottom_player=player_index)
     ui_state = UI_State()
