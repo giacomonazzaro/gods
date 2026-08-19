@@ -158,8 +158,10 @@ Menu_Result run_menu(
 
     auto window_rect = Rectangle{0.0f, 0.0f, (float)W, (float)H};
     BeginDrawing();
-    begin_screen_fit();
+    // Outside the screen fit, so it covers the whole window. Everything
+    // after it is drawn in the fixed logical coordinate space.
     draw_background(input);
+    begin_screen_fit();
 
     if (state.screen == Screen::MAIN) {
       auto container =

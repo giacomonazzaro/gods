@@ -6,7 +6,7 @@ in vec2 fragTexCoord;
 uniform float u_time;
 uniform vec2  u_resolution;
 uniform float u_turn;   // 0.0 = your turn, 1.0 = opponent's turn.
-uniform vec2  u_mouse;  // (0,0) to (1,1) across the screen.
+uniform vec2  u_mouse;  // Framebuffer pixels from the bottom left, like gl_FragCoord.
 
 out vec4 fragColor;
 
@@ -132,7 +132,8 @@ vec2 turbulence(vec2 pos, float time, float amplitude) {
 void main() {
   vec2  uv   = gl_FragCoord.xy / u_resolution.x;
   float t    = u_time * 0.1;
-  vec2 mouse = 2.0 * vec2(u_mouse.x, u_resolution.y - u_mouse.y) / u_resolution.x;
+  // Same space as uv: u_mouse already counts from the bottom left.
+  vec2 mouse = u_mouse / u_resolution.x;
   // uv *= 2.0;
   float dist = length(uv - mouse);
   // dist = -dist;

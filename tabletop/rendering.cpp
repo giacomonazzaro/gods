@@ -164,9 +164,6 @@ void draw_background(const Input& input, float turn) {
   float t = (float)GetTime();
   SetShaderValue(s_background_shader, s_bg_time_loc, &t, SHADER_UNIFORM_FLOAT);
 
-  // Pass logical pixel dimensions to match desktop behavior: on retina
-  // displays gl_FragCoord is in physical pixels so uv = fragCoord/resolution
-  // naturally ranges 0..dpr, which the shader is tuned for.
   float res[2] = {(float)GetScreenWidth(), (float)GetScreenHeight()};
   SetShaderValue(
     s_background_shader, s_bg_resolution_loc, res, SHADER_UNIFORM_VEC2
@@ -175,20 +172,35 @@ void draw_background(const Input& input, float turn) {
   SetShaderValue(
     s_background_shader, s_bg_turn_loc, &s_bg_turn_value, SHADER_UNIFORM_FLOAT
   );
-  float        mouse[2]          = {(float)input.mouse_x, (float)input.mouse_y};
+  // The shader compares the mouse against gl_FragCoord, so it has to be in
+  // the same space: framebuffer pixels — 2 per window pixel on a Retina
+  // screen, 1 in the browser — counted from the bottom left. The input
+  // carries it in the logical coordinate space from the top left, so it
+  // takes three steps: through the screen fit into window pixels, times the
+  // pixel ratio into framebuffer pixels, and the y flipped.
+  Screen_Fit fit         = screen_fit();
+  float      pixel_ratio = (float)GetRenderWidth() / (float)GetScreenWidth();
+  float      mouse[2]    = {
+    ((float)input.mouse_x * fit.scale + fit.offset_x) * pixel_ratio,
+    (float)GetRenderHeight() -
+      ((float)input.mouse_y * fit.scale + fit.offset_y) * pixel_ratio
+  };
   static float mouse_animated[2] = {0, 0};
   if (mouse_animated[0] == 0 && mouse_animated[1] == 0) {
     mouse_animated[0] = mouse[0];
     mouse_animated[1] = mouse[1];
   }
-  mouse_animated[0] = (1.0 - dt) * mouse_animated[0] + dt * mouse[0];
-  mouse_animated[1] = (1.0 - dt) * mouse_animated[1] + dt * mouse[1];
+  float alpha       = dt * 2.5;
+  mouse_animated[0] = (1.0 - alpha) * mouse_animated[0] + alpha * mouse[0];
+  mouse_animated[1] = (1.0 - alpha) * mouse_animated[1] + alpha * mouse[1];
 
   SetShaderValue(
     s_background_shader, s_bg_mouse_loc, mouse_animated, SHADER_UNIFORM_VEC2
   );
+  // The whole window, not the logical canvas: this is drawn outside the
+  // screen fit so it also covers the bars the fit leaves on the sides.
   BeginShaderMode(s_background_shader);
-  DrawRectangle(0, 0, tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT, WHITE);
+  DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), WHITE);
   EndShaderMode();
 }
 
@@ -414,10 +426,8 @@ void animate(
   if (smoothout && table.drag_state.thing_id() == i) {
     smoothout = false;
   }
-  for (int child_id: table.things[i].children()) {
-    animate(
-      child_id, animated, target, table, dt, smoothout
-    );
+  for (int child_id : table.things[i].children()) {
+    animate(child_id, animated, target, table, dt, smoothout);
   }
 }
 
@@ -689,8 +699,10 @@ void run_tabletop(
     // inside the same frame or none of them ever gets the mouse. The panels
     // themselves only call ImGui::Begin / ImGui::End.
     rlImGuiBegin();
-    begin_screen_fit();
+    // Outside the screen fit, so it covers the whole window. Everything
+    // after it is drawn in the fixed logical coordinate space.
     draw_background(input);
+    begin_screen_fit();
     draw_table(table, input);
 
     // Game logic runs after rendering so that world_transforms (refreshed
