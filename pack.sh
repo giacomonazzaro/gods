@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-# Usage: sh pack.sh <game>   (default: gods)
-GAME="${1:-gods}"
-SOURCE_DIR="${GAME}_app"
+# Usage: sh pack.sh <game_app>
+GAME="${1}"
+SOURCE_DIR="${GAME}"
 BUILD_DIR="build/${SOURCE_DIR}_wasm"
 OUTPUT_DIR="${SOURCE_DIR}_package"
 OUTPUT_ZIP="${SOURCE_DIR}_package.zip"
@@ -90,4 +90,7 @@ zip -rj "$OUTPUT_ZIP" "$OUTPUT_DIR/"*
 
 echo "------------------------------------------------"
 echo "Success! Archive created: $OUTPUT_ZIP"
-echo "Send this zip to your friend; unzip and run ./run_app.sh."
+echo "How to run:"
+echo "unzip $OUTPUT_ZIP"
+echo "cd $OUTPUT_DIR"
+echo "sh run_app.sh"
