@@ -164,7 +164,15 @@ void draw_background(const Input& input, float turn) {
   float t = (float)GetTime();
   SetShaderValue(s_background_shader, s_bg_time_loc, &t, SHADER_UNIFORM_FLOAT);
 
-  float res[2] = {(float)GetScreenWidth(), (float)GetScreenHeight()};
+  // The shader divides gl_FragCoord by this, so it sets how far uv reaches
+  // across the window, and with it the size of the pattern. Dividing the
+  // framebuffer by a fixed number keeps that reach the same on every screen;
+  // passing the window size instead would make the pattern twice as large on
+  // a screen that is not Retina. Raise UV_SPAN to make the pattern smaller.
+  const float UV_SPAN = 2.0f;
+  float       res[2]  = {
+    (float)GetRenderWidth() / UV_SPAN, (float)GetRenderHeight() / UV_SPAN
+  };
   SetShaderValue(
     s_background_shader, s_bg_resolution_loc, res, SHADER_UNIFORM_VEC2
   );
