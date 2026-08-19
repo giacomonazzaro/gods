@@ -232,9 +232,9 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
     //   /* max_depth       */ 13
     // );
 
-    return new Agent_Async(
-      new Agent_Minimax_Stochastic<mindbug::Game_State>(13, 64)
-    );
+    // return new Agent_Async(
+    //   new Agent_Minimax_Stochastic<mindbug::Game_State>(13, 64)
+    // );
 
     auto* agent = new Agent_MCTS_Stochastic<mindbug::Game_State>(
       /* num_samples          */ 16,
