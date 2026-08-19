@@ -121,7 +121,8 @@ std::vector<int> traverse_to_leaf_node(
   std::vector<Game_T>& states,
   int                  root_player,
   float                exploration_constant,
-  std::mt19937&        rng
+  std::mt19937&        rng,
+  int                  max_nodes = 0
 ) {
   // Descend through expanded nodes until we reach a leaf.
   int                      node_index = 0;
@@ -142,6 +143,14 @@ std::vector<int> traverse_to_leaf_node(
   // Visited leaf: expand all children and return the first one.
   const int parent_index = node_index;
   const int num_children = nodes[parent_index].num_actions;
+
+  // A full tree stops growing but the search goes on: the iteration plays a
+  // rollout from this leaf and the counts above it still improve. Growing
+  // past the limit is what runs the browser's heap out.
+  if (max_nodes > 0 && (int)nodes.size() + num_children > max_nodes) {
+    return path;
+  }
+
   nodes[parent_index].children.resize(num_children);
   for (int i = 0; i < num_children; ++i) {
     // A child starts as a copy of the parent, so it carries the same pending
@@ -317,7 +326,9 @@ struct MCTS_Search_Cache {
   // game waits on this one.
   Choice choice;
 
-  void initalize(Game_T& state, const Choice& choice, int num_iterations) {
+  void initalize(
+    Game_T& state, const Choice& choice, int num_iterations, int max_nodes
+  ) {
     // printf("Start new choice, reset cache!\n");
     using mcts_detail::initialize_node;
     using mcts_detail::Node;
@@ -342,7 +353,11 @@ struct MCTS_Search_Cache {
     // moves nothing that matters. Reserving `num_iterations` would ask for
     // one state per iteration — 96 GB per tree when the iteration count is a
     // "no limit" sentinel and the real bound is the time budget.
-    const int reserved = std::min(num_iterations + 1, 64 * 1024);
+    int reserved = std::min(num_iterations + 1, 64 * 1024);
+    // Never reserve past the cap: 64 * 1024 states is 60 MB for mindbug, and
+    // one tree per deal would reserve the browser's whole heap before a
+    // single iteration had run.
+    if (max_nodes > 0) reserved = std::min(reserved, max_nodes);
     this->nodes.reserve(reserved);
     this->states.reserve(reserved);
 
@@ -367,7 +382,8 @@ void run_one_iteration(
   Agent&                                   rollout_agent,
   float                                    exploration_constant,
   int                                      rollout_depth,
-  std::function<float(const Game_T&, int)> leaf_evaluator = nullptr
+  std::function<float(const Game_T&, int)> leaf_evaluator = nullptr,
+  int                                      max_nodes      = 0
 ) {
   auto& choice      = cache.choice;
   auto& states      = cache.states;
@@ -375,7 +391,12 @@ void run_one_iteration(
   auto  root_player = choice.player_index;
 
   const auto path = mcts_detail::traverse_to_leaf_node(
-    cache.nodes, cache.states, root_player, exploration_constant, cache.rng
+    cache.nodes,
+    cache.states,
+    root_player,
+    exploration_constant,
+    cache.rng,
+    max_nodes
   );
 
   const int node_index = path.back();
@@ -419,6 +440,12 @@ struct Agent_MCTS : Agent {
   // Number of independent search trees to grow in parallel. 0 means "one per
   // hardware core". Always 1 under Emscripten, which has no worker threads.
   const int num_threads;
+  // Largest the tree may grow, in nodes. 0 means no limit, which is what a
+  // desktop uses. It matters in the browser, where the whole program gets
+  // one fixed heap: every node keeps a copy of the game state, so a search
+  // bounded only by time runs the heap out and the module aborts mid-move.
+  // Agent_MCTS_Stochastic sets this for its deals.
+  int max_nodes = 0;
   // Optional leaf value function. When set, the simulation step replaces the
   // random rollout with a direct value lookup at each leaf — e.g. a shallow
   // minimax — which is far stronger than random playouts in tactical games.
@@ -470,7 +497,7 @@ struct Agent_MCTS : Agent {
 
     using mcts_detail::best_ucb1_child;
     if (!cache.initialized || cache.choice != choice) {
-      cache.initalize(state, choice, num_iterations);
+      cache.initalize(state, choice, num_iterations, max_nodes);
     }
 
     auto frame_start = time_now();
@@ -481,7 +508,8 @@ struct Agent_MCTS : Agent {
         rollout_agent,
         exploration_constant,
         rollout_depth,
-        leaf_evaluator
+        leaf_evaluator,
+        max_nodes
       );
       auto total_elapsed_time = time_elapsed_seconds(cache.start_time);
       auto frame_elapsed_time = time_elapsed_seconds(frame_start);
@@ -503,6 +531,7 @@ struct Agent_MCTS : Agent {
         // printf("EXITED: %d iterations\n", cache.iterations_run);
         break;
       }
+
 
       if (total_time_budget > 0 &&  // if 0, no time budget
           total_elapsed_time >= total_time_budget) {
@@ -561,7 +590,14 @@ struct Agent_MCTS_Stochastic : Agent {
             rollout_depth,
             exploration_constant,
             total_time_budget,
+#ifdef __EMSCRIPTEN__
+            // One thread draws and searches, and choose_action below moves
+            // every unfinished deal forward on each call, so the deals share
+            // the frame between them.
+            frame_time_budget / (float)std::max(1, num_samples),
+#else
             frame_time_budget,
+#endif
             num_threads
           )
         ) {
@@ -577,6 +613,20 @@ struct Agent_MCTS_Stochastic : Agent {
     //   );
     // }
     this->rng = std::mt19937(std::random_device{}());
+#ifdef __EMSCRIPTEN__
+    // The browser gives the whole program one fixed heap — 256 MB for
+    // mindbug — and every tree node keeps a copy of the game state, 920
+    // bytes of it there. A search that stops only on time asked for 2.3 GB
+    // and the module aborted, which on screen looked like the cards
+    // vanishing. Share a fixed number of bytes out between the deals.
+    // ponytail: 64 MB of nodes, which is what fits alongside the rest of
+    // the app. Raise it together with TOTAL_MEMORY in the app's CMakeLists.
+    const size_t node_bytes  = sizeof(Game_T) + sizeof(mcts_detail::Node);
+    const size_t node_budget = 64u * 1024u * 1024u;
+    const int    per_deal =
+      (int)(node_budget / node_bytes / (size_t)std::max(1, num_samples));
+    for (auto& search : agents) search.max_nodes = per_deal;
+#endif
   }
 
   // The deals and their trees belong to the position they were dealt for.
@@ -608,12 +658,17 @@ struct Agent_MCTS_Stochastic : Agent {
     // already answered is left alone: asking it again would throw its tree
     // away and start a new search, and the votes would never all be in.
 #ifdef __EMSCRIPTEN__
-    // The browser has one thread and it is the one drawing, so only one deal
-    // moves forward per call.
+    // The browser has one thread and it is the one drawing, so the deals
+    // cannot be searched at the same time. They still have to be searched
+    // over the same stretch of wall-clock time: a deal stops at its
+    // total_time_budget counted from its own first call, so searching one
+    // deal to the end before starting the next takes num_samples times as
+    // long — 85 seconds instead of 5, with the settings mindbug plays with.
+    // Every unfinished deal gets a slice of each call instead; the slices
+    // add up to one frame because the constructor divided the frame budget.
     for (int i = 0; i < num_samples; ++i) {
       if (picks[i] >= 0) continue;
       picks[i] = agents[i].choose_action(deals[i], choice);
-      break;
     }
 #else
     // Each thread writes one entry of `picks`, so nothing needs locking.
