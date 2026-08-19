@@ -88,8 +88,10 @@ bool can_block(
 Turn_Moves turn_actions(const Game_State& state) {
   auto          actions = Turn_Moves();
   const Player& player  = state.players[state.current_player];
-  for (int card : player.hand) actions.push_back(Turn_Action{false, card});
-  for (int card : player.creatures) actions.push_back(Turn_Action{true, card});
+  for (uint8_t card : player.hand) actions.push_back(Turn_Action{false, card});
+  for (uint8_t card : player.creatures) {
+    actions.push_back(Turn_Action{true, card});
+  }
   return actions;
 }
 

@@ -4,6 +4,7 @@
 #include <game/game.h>
 #include <struct/print.h>
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -86,16 +87,19 @@ struct Player {
   // holds: past it an Array_Inline goes to the heap, and a state is copied on
   // every node a search looks at. A hand refills to 5 but Giraffodile empties a
   // discard pile into it, and every card a player owns can end up discarded.
-  Array_Inline<int, 16> hand;
-  Array_Inline<int, 5>  draw_pile;  // Face-down, in draw order (back = top).
-  Array_Inline<int, 12> creatures;  // In play, in the order they were played.
-  Array_Inline<int, 20> discard;
-  int                   life     = STARTING_LIFE;
-  int                   mindbugs = STARTING_MINDBUGS;
+  // A card index, a life total and a Mindbug count all fit in a byte. A
+  // state is copied at every node a search looks at, so the byte-wide types
+  // are what keep those copies small.
+  Array_Inline<uint8_t, 16> hand;
+  Array_Inline<uint8_t, 5>  draw_pile;  // Face-down, in draw order.
+  Array_Inline<uint8_t, 12> creatures;  // In play, in the order played.
+  Array_Inline<uint8_t, 20> discard;
+  uint8_t                   life     = STARTING_LIFE;
+  uint8_t                   mindbugs = STARTING_MINDBUGS;
 };
 
 // What the game does next once the pending effects are done.
-enum class Phase {
+enum class Phase : uint8_t {
   TURN,     // The active player plays a creature or attacks with one.
   MINDBUG,  // The opponent decides whether to steal the creature being played.
   ATTACK,   // The attacker's Attack ability triggers.
@@ -107,29 +111,31 @@ enum class Phase {
 
 // A turn action: play `card` from hand, or attack with it.
 struct Turn_Action {
-  bool is_attack = false;
-  int  card      = 0;
+  bool    is_attack = false;
+  uint8_t card      = 0;
 };
 
 struct Game_State : Game {
   // The 20 cards dealt this game, each holding the design it shows. Fixed at
   // setup; every other list refers to a card by its index here.
-  Array_Inline<int, 24> all_cards;
-  std::array<Player, 2> players;
+  Array_Inline<uint8_t, 24> all_cards;
+  std::array<Player, 2>     players;
   // Creatures in play whose Tough keyword has already saved them once.
-  Array_Inline<int, 8> exhausted_cards;
+  Array_Inline<uint8_t, 8> exhausted_cards;
 
-  int   current_player = 0;
-  Phase phase          = Phase::TURN;
-  bool  game_over      = false;
-  int   winner         = -1;
+  uint8_t current_player = 0;
+  Phase   phase          = Phase::TURN;
+  bool    game_over      = false;
+  // The four below are int8_t, not uint8_t: -1 is what they hold when there
+  // is no winner, no card being played, and no attack in progress.
+  int8_t winner = -1;
 
   // Set while a creature is played, until the Mindbug decision resolves.
-  int played_card = -1;
+  int8_t played_card = -1;
   // Set while an attack resolves.
-  int attacker     = -1;
-  int blocker      = -1;
-  int attack_count = 0;  // Attacks this creature has made this turn (frenzy).
+  int8_t  attacker     = -1;
+  int8_t  blocker      = -1;
+  uint8_t attack_count = 0;  // Attacks this creature made this turn (frenzy).
   // A hunter's controller gave the block decision back to the defender.
   bool hunter_declined = false;
   // The opponent spent a Mindbug, so the active player takes another turn.

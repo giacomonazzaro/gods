@@ -56,8 +56,8 @@ bool can_block(
 
 // Take `card` out of one of a player's card lists. It is always in the list:
 // the callers read the card out of the list itself.
-template <int N>
-void remove_card(Array_Inline<int, N>& cards, int card) {
+template <class T, int N>
+void remove_card(Array_Inline<T, N>& cards, int card) {
   for (int i = 0; i < cards.size(); ++i) {
     if (cards[i] != card) continue;
     cards.erase(cards.begin() + i);
@@ -129,7 +129,7 @@ inline int pack_turn_action(const Turn_Action& action) {
 }
 
 inline Turn_Action unpack_turn_action(int packed) {
-  return Turn_Action{(packed & 256) != 0, packed & 255};
+  return Turn_Action{(packed & 256) != 0, (uint8_t)(packed & 255)};
 }
 
 // Rates the position for `player`. A win beats every unfinished position and a
@@ -143,10 +143,10 @@ inline float evaluate_state(const Game_State& state, int player) {
   // float life     = state.players[player].life;
   // float life_opp = state.players[opponent].life;
   float mindbugs = std::min(
-    state.players[player].mindbugs, state.players[opponent].hand.size()
+    (int)state.players[player].mindbugs, state.players[opponent].hand.size()
   );
   float mindbugs_opp = std::min(
-    state.players[opponent].mindbugs, state.players[player].hand.size()
+    (int)state.players[opponent].mindbugs, state.players[player].hand.size()
   );
 
   float my_cards    = cards_left(state, player);

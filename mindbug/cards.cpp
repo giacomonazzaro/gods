@@ -61,7 +61,7 @@ bool load_card_designs(const std::string& path) {
 
 // Every card of a pile, as choice targets.
 template <int N>
-static Targets cards_of(const Array_Inline<int, N>& pile) {
+static Targets cards_of(const Array_Inline<uint8_t, N>& pile) {
   auto cards = Targets();
   cards.assign(pile.begin(), pile.end());
   return cards;
