@@ -99,12 +99,12 @@ struct Player {
   // A card index, a life total and a Mindbug count all fit in a byte. A
   // state is copied at every node a search looks at, so the byte-wide types
   // are what keep those copies small.
-  Array_Inline<uint8_t, 16> hand;
-  Array_Inline<uint8_t, 5>  draw_pile;  // Face-down, in draw order.
-  Array_Inline<uint8_t, 12> creatures;  // In play, in the order played.
-  Array_Inline<uint8_t, 20> discard;
-  uint8_t                   life     = STARTING_LIFE;
-  uint8_t                   mindbugs = STARTING_MINDBUGS;
+  Array_Inline<uint8_t, 8> hand;
+  Array_Inline<uint8_t, 8> draw_pile;  // Face-down, in draw order.
+  Array_Inline<uint8_t, 8> creatures;  // In play, in the order played.
+  Array_Inline<uint8_t, 8> discard;
+  uint8_t                  life     = STARTING_LIFE;
+  uint8_t                  mindbugs = STARTING_MINDBUGS;
 };
 
 // What the game does next once the pending effects are done.

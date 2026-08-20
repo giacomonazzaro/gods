@@ -43,8 +43,15 @@ struct Node {
 // just as well).
 template <class Game_T>
 float rollout(
-  Game_T state, int root_player, Agent& rollout_agent, int max_depth
+  const Game_T& leaf, int root_player, Agent& rollout_agent, int max_depth
 ) {
+  // No playout to run: evaluate the leaf where it stands. Taking the state by
+  // value would copy it for nothing, once per iteration, and mindbug plays
+  // with max_depth 0.
+  if (max_depth <= 0) return evaluate_state(leaf, root_player);
+
+  // The playout plays moves, so it needs a state of its own.
+  Game_T state = leaf;
   for (int depth = 0; depth < max_depth; ++depth) {
     if (state.is_game_over()) break;
     if (pending_action_count(state) == 0) break;
