@@ -157,8 +157,8 @@ make_card_draw_callback(
     }
 
     if (highlighted) {
-      DrawRectangleRoundedLinesEx(
-        face, rounding, 8, 5.0f, Color{255, 215, 0, 230}
+      draw_rectangle_rounded_lines_inward(
+        face, rounding, 5.0f, Color{255, 215, 0, 230}
       );
     }
   };
@@ -182,11 +182,10 @@ make_theater_draw_callback(
       Color{255, 255, 255, 240}
     );
     if (highlighted) {
-      DrawRectangleRoundedLinesEx(
+      draw_rectangle_rounded_lines_inward(
         Rectangle{-half_width, -half_height, half_width * 2.0f,
                   half_height * 2.0f},
         0.2f,
-        8,
         5.0f,
         Color{255, 215, 0, 230}
       );

@@ -21,6 +21,12 @@ void render_text(
 );
 int text_width(const std::string& text, int size);
 
+// Rounded outline drawn inside the rectangle, not outside it like raylib's
+// DrawRectangleRoundedLinesEx. roundness means the same as in raylib.
+void draw_rectangle_rounded_lines_inward(
+  Rectangle rect, float roundness, float width, Color color
+);
+
 // Push / pop the letterbox transform (see screen_fit) so drawing done in
 // logical canvas coordinates lands scaled and centered in the real window.
 void begin_screen_fit();

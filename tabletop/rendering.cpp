@@ -212,6 +212,33 @@ void draw_background(const Input& input, float turn) {
   EndShaderMode();
 }
 
+// --- rounded border drawn inside the rectangle ---
+
+// DrawRectangleRoundedLinesEx puts the line outside the rectangle, so shrink
+// the rectangle by the line width: the outer edge of the line then falls on
+// the original rectangle. roundness means the same as in raylib, so the corner
+// radius is min(width, height) * roundness / 2.
+void draw_rectangle_rounded_lines_inward(
+  Rectangle rect, float roundness, float width, Color color
+) {
+  Rectangle inner = {
+    rect.x + width,
+    rect.y + width,
+    rect.width - 2.0f * width,
+    rect.height - 2.0f * width
+  };
+  if (inner.width <= 0.0f || inner.height <= 0.0f) return;
+  float radius =
+    std::min(rect.width, rect.height) * roundness / 2.0f - width;
+  if (radius <= 0.0f) {
+    // DrawRectangleLinesEx already draws inside the rectangle.
+    DrawRectangleLinesEx(rect, width, color);
+    return;
+  }
+  float inner_roundness = 2.0f * radius / std::min(inner.width, inner.height);
+  DrawRectangleRoundedLinesEx(inner, inner_roundness, 8, width, color);
+}
+
 // --- draw_thing_back ---
 
 void draw_thing_back(const Thing& thing) {
@@ -242,8 +269,8 @@ void draw_thing_back(const Thing& thing) {
   );
 
   // Border.
-  DrawRectangleRoundedLinesEx(
-    Rectangle{x, y, w, h}, r / std::min(w, h), 8, 2.0f, border_color
+  draw_rectangle_rounded_lines_inward(
+    Rectangle{x, y, w, h}, r / std::min(w, h), 2.0f, border_color
   );
 }
 
@@ -310,10 +337,9 @@ void draw_thing(const Thing& thing, bool face_up) {
       [&](const auto& s) {
         using S = std::decay_t<decltype(s)>;
         if constexpr (std::is_same_v<S, Shape_Rectangle>) {
-          DrawRectangleRoundedLinesEx(
+          draw_rectangle_rounded_lines_inward(
             Rectangle{x, y, w, h},
             s.corner_radius / std::min(w, h),
-            8,
             thing.border_width,
             thing.border_color
           );
@@ -369,8 +395,8 @@ void draw_drop_placeholder(int thing_id, const Table_State& state) {
   float     h       = (float)tt::CARD_HEIGHT;
   float     r       = (float)tt::CARD_CORNER_RADIUS;
 
-  DrawRectangleRoundedLinesEx(
-    r_world, r / std::min(w, h), 8, 1.0f, Color{100, 100, 100, 100}
+  draw_rectangle_rounded_lines_inward(
+    r_world, r / std::min(w, h), 1.0f, Color{100, 100, 100, 100}
   );
 
   const std::string& label   = state.things[thing_id].name;
