@@ -18,18 +18,6 @@ bool load_card_designs(const std::string& path = "mindbug/cards.json");
 // 5 face down, and ask for the first decision.
 Game_State quick_setup(int seed);
 
-// The whole 48-card deck as a list of designs, each repeated as many times as
-// the card is printed. Setup deals out of it, and a search samples the cards it
-// cannot see out of what is left of it.
-inline Array_Inline<int, 48> full_deck_designs() {
-  auto deck = Array_Inline<int, 48>();
-  for (int design = 0; design < (int)card_designs.size(); ++design) {
-    for (int copy = 0; copy < card_designs[design].copies; ++copy) {
-      deck.push_back(design);
-    }
-  }
-  return deck;
-}
 
 // A list of cards a choice offers, or of moves a player has. Held inline: the
 // search builds these on every node it looks at.
@@ -185,24 +173,35 @@ inline Game_State sample_state(
 ) {
   auto sampled = Game_State(concrete);
 
-  auto is_hidden = std::vector<bool>(sampled.all_cards.size(), false);
-  for (int card : sampled.players[player].draw_pile) is_hidden[card] = true;
-  for (int card : sampled.players[1 - player].hand) is_hidden[card] = true;
-  for (int card : sampled.players[1 - player].draw_pile) is_hidden[card] = true;
+  // Cards this player has seen: their own hand, both discard piles, and
+  // everything in play or part of the attack being resolved.
+  auto is_seen = std::vector<bool>(all_cards.size(), false);
+  for (int card : sampled.players[player].hand) is_seen[card] = true;
+  for (int side = 0; side < 2; ++side) {
+    for (int card : sampled.players[side].discard) is_seen[card] = true;
+    for (int card : sampled.players[side].creatures) is_seen[card] = true;
+  }
+  if (sampled.played_card >= 0) is_seen[sampled.played_card] = true;
+  if (sampled.attacker >= 0) is_seen[sampled.attacker] = true;
+  if (sampled.blocker >= 0) is_seen[sampled.blocker] = true;
 
-  auto unseen = full_deck_designs();
-  for (int card = 0; card < (int)is_hidden.size(); ++card) {
-    if (is_hidden[card]) continue;
-    auto shown =
-      std::find(unseen.begin(), unseen.end(), design_of(sampled, card));
-    if (shown != unseen.end()) unseen.erase(shown);
+  // Everything else is the same unknown, the 28 cards the deal set aside
+  // included.
+  auto unseen = std::vector<uint8_t>();
+  for (int card = 0; card < (int)all_cards.size(); ++card) {
+    if (!is_seen[card]) unseen.push_back((uint8_t)card);
   }
   std::shuffle(unseen.begin(), unseen.end(), rng);
 
-  int next = 0;
-  for (int card = 0; card < (int)is_hidden.size(); ++card) {
-    if (is_hidden[card]) sampled.all_cards[card] = unseen[next++];
-  }
+  // Deal the hidden zones again out of the unseen cards. The zones keep
+  // their sizes; only which cards are in them changes.
+  int  next   = 0;
+  auto refill = [&](auto& zone) {
+    for (int i = 0; i < zone.size(); ++i) zone[i] = unseen[next++];
+  };
+  refill(sampled.players[player].draw_pile);
+  refill(sampled.players[1 - player].hand);
+  refill(sampled.players[1 - player].draw_pile);
   return sampled;
 }
 

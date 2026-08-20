@@ -19,7 +19,7 @@ using namespace mindbug;
 // The attacking creature, named so the defender knows what is coming.
 static std::string attacker_name(const Game_State& state) {
   if (state.attacker == -1) return "";
-  const int design = design_of(state, state.attacker);
+  const int design = design_of(state.attacker);
   return card_designs[design].name + " (" +
          std::to_string(effective_power(state, state.attacker)) + ")";
 }
@@ -72,7 +72,7 @@ static void highlight_card(
 static void clear_highlights(
   Table_State& table, const mindbug::Game_State& state
 ) {
-  for (int card = 0; card < state.all_cards.size(); ++card) {
+  for (int card = 0; card < (int)mindbug::all_cards.size(); ++card) {
     table.draw_callbacks[card] = make_card_draw_callback(state, card);
   }
 }

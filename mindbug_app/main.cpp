@@ -58,9 +58,10 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
 
     table.is_drop_allowed = [](int, int, int) { return false; };
 
-    // One Thing per card of the deal; ids match the game's card indices. The
-    // deal comes later, so a card takes its art in update_table_from_game.
-    const int card_count = 2 * (mindbug::HAND_SIZE + mindbug::DRAW_PILE_SIZE);
+    // One Thing per card of the deck; ids match the game's card indices. Only
+    // the 20 dealt ever reach a zone, the rest stay off the table. The deal
+    // comes later, so a card takes its art in update_table_from_game.
+    const int card_count = (int)mindbug::all_cards.size();
     for (int card = 0; card < card_count; ++card) {
       table.things.push_back(make_card());
       table.draw_callbacks[card] =
@@ -101,10 +102,10 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
     };
   }
 
-  // The Thing holding player's Mindbug number `index`. They follow the dealt
-  // cards, so their ids are fixed by the deal size.
+  // The Thing holding player's Mindbug number `index`. They follow the deck,
+  // so their ids are fixed by how many cards the deck holds.
   static int mindbug_thing(int player, int index) {
-    return 2 * (mindbug::HAND_SIZE + mindbug::DRAW_PILE_SIZE) +
+    return (int)mindbug::all_cards.size() +
            player * mindbug::STARTING_MINDBUGS + index;
   }
 
@@ -134,9 +135,9 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
     // look for it in the zone it has already left.
     table.drag_state = Drag_State();
 
-    for (int card = 0; card < state.all_cards.size(); ++card) {
+    for (int card = 0; card < (int)mindbug::all_cards.size(); ++card) {
       const mindbug::Card_Design& design =
-        mindbug::card_designs[mindbug::design_of(state, card)];
+        mindbug::card_designs[mindbug::design_of(card)];
       table.things[card].image_path = get_image_path(design.image);
     }
 

@@ -21,18 +21,48 @@ static void check(bool condition, const char* what) {
   failures += 1;
 }
 
+// Is this card already somewhere in the game?
+static bool is_dealt(const Game_State& state, int card) {
+  for (int seat = 0; seat < 2; ++seat) {
+    const Player& player = state.players[seat];
+    for (int held : player.hand) {
+      if (held == card) return true;
+    }
+    for (int held : player.draw_pile) {
+      if (held == card) return true;
+    }
+    for (int held : player.creatures) {
+      if (held == card) return true;
+    }
+    for (int held : player.discard) {
+      if (held == card) return true;
+    }
+  }
+  return false;
+}
+
+// A card of `design` that the test has not used yet. Cards are fixed now, so
+// a test asks for a design and gets one of the printed copies of it.
+static int take_card(const Game_State& state, int design) {
+  for (int card = 0; card < (int)all_cards.size(); ++card) {
+    if (all_cards[card] == design) {
+      if (!is_dealt(state, card)) return card;
+    }
+  }
+  check(false, "the deck ran out of copies of a design");
+  return 0;
+}
+
 // A creature in play, skipping the Play ability.
 static int put(Game_State& state, int design, int controller) {
-  state.all_cards.push_back(design);
-  const int card = state.all_cards.size() - 1;
+  const int card = take_card(state, design);
   state.players[controller].creatures.push_back(card);
   return card;
 }
 
 // A card in a player's hand.
 static int deal(Game_State& state, int design, int player) {
-  state.all_cards.push_back(design);
-  const int card = state.all_cards.size() - 1;
+  const int card = take_card(state, design);
   state.players[player].hand.push_back(card);
   return card;
 }
@@ -109,7 +139,7 @@ static void test_keywords() {
 // need and a blocker loop works out once.
 static bool has_elephantopus(const Game_State& state, int attacker) {
   for (int ally : state.players[controller_of(state, attacker)].creatures) {
-    if (design_of(state, ally) == ELEPHANTOPUS) return true;
+    if (design_of(ally) == ELEPHANTOPUS) return true;
   }
   return false;
 }
@@ -206,23 +236,27 @@ static void test_sampling() {
   for (int player = 0; player < 2; ++player) {
     Game_State sampled = sample_state(state, player, rng);
 
-    for (int card : state.players[player].hand) {
+    // A card the player has seen keeps its identity, so the same index sits
+    // in the same place.
+    for (int i = 0; i < state.players[player].hand.size(); ++i) {
       check(
-        design_of(sampled, card) == design_of(state, card), "my hand is kept"
+        sampled.players[player].hand[i] == state.players[player].hand[i],
+        "my hand is kept"
       );
     }
     for (int seat = 0; seat < 2; ++seat) {
-      for (int card : state.players[seat].creatures) {
+      for (int i = 0; i < state.players[seat].creatures.size(); ++i) {
         check(
-          design_of(sampled, card) == design_of(state, card),
+          sampled.players[seat].creatures[i] ==
+            state.players[seat].creatures[i],
           "creatures are kept"
         );
       }
     }
     for (int seat = 0; seat < 2; ++seat) {
-      for (int card : state.players[seat].discard) {
+      for (int i = 0; i < state.players[seat].discard.size(); ++i) {
         check(
-          design_of(sampled, card) == design_of(state, card),
+          sampled.players[seat].discard[i] == state.players[seat].discard[i],
           "discard piles are kept"
         );
       }
@@ -237,16 +271,18 @@ static void test_sampling() {
       );
     }
 
-    // No design turns up more often than the deck prints it.
-    std::vector<int> dealt(DESIGN_COUNT, 0);
-    for (int card = 0; card < sampled.all_cards.size(); ++card) {
-      dealt[design_of(sampled, card)] += 1;
+    // Every card is one physical card, so no index may turn up in two zones.
+    // This is what catches a sampler that hands the same unseen card out
+    // twice.
+    auto times_held = std::vector<int>(all_cards.size(), 0);
+    for (int seat = 0; seat < 2; ++seat) {
+      for (int card : sampled.players[seat].hand) times_held[card] += 1;
+      for (int card : sampled.players[seat].draw_pile) times_held[card] += 1;
+      for (int card : sampled.players[seat].creatures) times_held[card] += 1;
+      for (int card : sampled.players[seat].discard) times_held[card] += 1;
     }
-    for (int design = 0; design < DESIGN_COUNT; ++design) {
-      check(
-        dealt[design] <= card_designs[design].copies,
-        "a sampled deal fits in the deck"
-      );
+    for (int card = 0; card < (int)all_cards.size(); ++card) {
+      check(times_held[card] <= 1, "a sampled deal holds each card once");
     }
   }
 }
@@ -296,7 +332,9 @@ static void test_frenzy_second_attack() {
   const int toad =
     put(state, EXPLOSIVE_TOAD, 1);  // Defeated: defeat a creature.
   deal(state, GORILLION, 0);
-  deal(state, GORILLION, 1);
+  // A card each, so neither player runs out. The deck prints one Gorillion,
+  // so the other player holds a different one.
+  deal(state, SPIDER_OWL, 1);
   state.begin_game();
 
   resolve_choice(state, pending_action_count(state) - 1);  // Attack with it.
@@ -324,7 +362,9 @@ static void test_frenzy_is_optional() {
   auto state = Game_State();
   put(state, LUCHATAUR, 0);  // Frenzy, and nothing to block it.
   deal(state, GORILLION, 0);
-  deal(state, GORILLION, 1);
+  // A card each, so neither player runs out. The deck prints one Gorillion,
+  // so the other player holds a different one.
+  deal(state, SPIDER_OWL, 1);
   state.begin_game();
 
   resolve_choice(state, pending_action_count(state) - 1);  // Attack with it.

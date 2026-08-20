@@ -78,6 +78,15 @@ struct Card_Design {
 
 extern std::vector<Card_Design> card_designs;
 
+// Every card in the game: the 48-card deck, each entry holding the design that
+// card shows. A design with two copies appears twice, so the two copies are
+// separate cards. Filled by load_card_designs().
+//
+// A card is named by its index here and that never changes, so this lives
+// outside Game_State next to card_designs: a search copies a state at every
+// node it looks at and must not copy the deck with it.
+extern std::vector<uint8_t> all_cards;
+
 // Card collections hold indices into Game_State.all_cards, so the two copies
 // of a card stay apart — which is what lets the app give each one its own
 // place on the table. A card is in exactly one of them, and which player holds
@@ -116,10 +125,7 @@ struct Turn_Action {
 };
 
 struct Game_State : Game {
-  // The 20 cards dealt this game, each holding the design it shows. Fixed at
-  // setup; every other list refers to a card by its index here.
-  Array_Inline<uint8_t, 24> all_cards;
-  std::array<Player, 2>     players;
+  std::array<Player, 2> players;
   // Creatures in play whose Tough keyword has already saved them once.
   Array_Inline<uint8_t, 8> exhausted_cards;
 
@@ -156,10 +162,8 @@ struct Game_State : Game {
   Player& opponent() { return players[1 - current_player]; }
 };
 
-// The design a dealt card shows.
-inline int design_of(const Game_State& state, int card) {
-  return state.all_cards[card];
-}
+// The design a card shows. Fixed for the whole game, so it needs no state.
+inline int design_of(int card) { return all_cards[card]; }
 
 // The player who has `card` in play, or -1 if it is not in play.
 inline int controller_of(const Game_State& state, int card) {
@@ -201,7 +205,6 @@ VISITABLE_STRUCT(mindbug::Turn_Action, is_attack, card);
 
 VISITABLE_STRUCT(
   mindbug::Game_State,
-  all_cards,
   players,
   exhausted_cards,
   current_player,

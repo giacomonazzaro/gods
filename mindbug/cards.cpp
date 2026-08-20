@@ -9,6 +9,7 @@
 namespace mindbug {
 
 std::vector<Card_Design> card_designs;
+std::vector<uint8_t>     all_cards;
 
 static int parse_keyword(const std::string& name) {
   if (name == "sneaky") return SNEAKY;
@@ -54,6 +55,15 @@ bool load_card_designs(const std::string& path) {
     }
     card_designs.push_back(design);
   }
+
+  // The deck itself: one card per printed copy, so a design with two copies
+  // becomes two separate cards that can be told apart by index.
+  all_cards.clear();
+  for (int design = 0; design < (int)card_designs.size(); ++design) {
+    for (int copy = 0; copy < card_designs[design].copies; ++copy) {
+      all_cards.push_back((uint8_t)design);
+    }
+  }
   return true;
 }
 
@@ -95,7 +105,7 @@ static int next_random(Game_State& state, int bound) {
 // ---- Abilities ----
 
 void trigger_play(Game_State& state, int card) {
-  const int design = design_of(state, card);
+  const int design = design_of(card);
   const int me     = controller_of(state, card);
   const int them   = 1 - me;
 
@@ -184,7 +194,7 @@ void trigger_play(Game_State& state, int card) {
 }
 
 void trigger_attack(Game_State& state, int card) {
-  const int design = design_of(state, card);
+  const int design = design_of(card);
   const int me     = controller_of(state, card);
   const int them   = 1 - me;
 
@@ -234,7 +244,7 @@ void trigger_attack(Game_State& state, int card) {
 }
 
 void trigger_defeated(Game_State& state, int card, int controller) {
-  const int design = design_of(state, card);
+  const int design = design_of(card);
   const int me     = controller;
   const int them   = 1 - me;
 

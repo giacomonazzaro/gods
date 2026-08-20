@@ -11,13 +11,13 @@ namespace mindbug {
 int effective_power(const Game_State& state, int card) {
   const int     controller = controller_of(state, card);
   const bool    its_turn   = state.current_player == controller;
-  const int     design     = design_of(state, card);
+  const int     design     = design_of(card);
   const Player& player     = state.players[controller];
   int           power      = card_designs[design].power;
 
   for (int ally : player.creatures) {
     if (ally == card) continue;
-    const int ally_design = design_of(state, ally);
+    const int ally_design = design_of(ally);
     if (ally_design == SHIELD_BUGS) power += 1;
     if (ally_design == URCHIN_HURLER && its_turn) power += 2;
   }
@@ -29,14 +29,14 @@ int effective_power(const Game_State& state, int card) {
 // mirror=false stops Sharky from copying another Sharky's copied keywords.
 static int keywords_of(const Game_State& state, int card, bool mirror) {
   const int     controller = controller_of(state, card);
-  const int     design     = design_of(state, card);
+  const int     design     = design_of(card);
   const Player& player     = state.players[controller];
   int           keywords   = card_designs[design].keywords;
 
   if (design == LONE_YETI && player.creatures.size() == 1) keywords |= FRENZY;
   // The power is only worth working out when an ally can arm this creature.
   for (int ally : player.creatures) {
-    if (ally == card || design_of(state, ally) != SNAIL_THROWER) continue;
+    if (ally == card || design_of(ally) != SNAIL_THROWER) continue;
     if (effective_power(state, card) <= 4) keywords |= HUNTER | POISONOUS;
     break;
   }
@@ -79,7 +79,7 @@ bool can_block(
     if (!(effective_keywords(state, blocker) & SNEAKY)) return false;
   }
   const int power = effective_power(state, blocker);
-  if (design_of(state, attacker) == BEE_BEAR && power <= 6) return false;
+  if (design_of(attacker) == BEE_BEAR && power <= 6) return false;
 
   if (attacker_has_elephantopus && power <= 4) return false;
   return true;
@@ -208,7 +208,7 @@ void enter_play(Game_State& state, int card, int controller) {
 
   // A Deathweaver on the other side switches the Play ability off.
   for (int enemy : state.players[1 - controller].creatures) {
-    if (design_of(state, enemy) == DEATHWEAVER) return;
+    if (design_of(enemy) == DEATHWEAVER) return;
   }
   trigger_play(state, card);
 }
@@ -314,7 +314,7 @@ static Targets legal_blockers(const Game_State& state) {
   // it in play, not only on the attacks it makes itself.
   bool elephantopus = false;
   for (int ally : state.players[controller].creatures) {
-    if (design_of(state, ally) == ELEPHANTOPUS) elephantopus = true;
+    if (design_of(ally) == ELEPHANTOPUS) elephantopus = true;
   }
 
   auto blockers = Targets();
@@ -501,24 +501,24 @@ void Game_State::init(int seed) {
   // A deal starts from an empty game, whatever was played here before.
   *this = Game_State();
 
-  auto rng  = std::mt19937((unsigned int)seed);
-  auto deck = full_deck_designs();
+  auto rng = std::mt19937((unsigned int)seed);
+  // The deck is shuffled by card, not by design: a card keeps the design it
+  // shows for the whole game, so shuffling means choosing which of the 48
+  // cards the two players get.
+  auto deck = std::vector<uint8_t>(all_cards.size());
+  for (int i = 0; i < (int)deck.size(); ++i) deck[i] = (uint8_t)i;
   std::shuffle(deck.begin(), deck.end(), rng);
   random_seed = (unsigned int)rng();
 
-  // Only the cards dealt to the two players take part in the game.
-  const int dealt_count = 2 * (HAND_SIZE + DRAW_PILE_SIZE);
-  all_cards.assign(deck.begin(), deck.begin() + dealt_count);
-
-  int card = 0;
+  int next = 0;
   for (int player = 0; player < 2; ++player) {
     // The dealt 10 cards are split 5/5 at random. On the rules sheet the
     // player picks which 5 of the 10 go to hand.
     for (int i = 0; i < HAND_SIZE; ++i) {
-      players[player].hand.push_back(card++);
+      players[player].hand.push_back(deck[next++]);
     }
     for (int i = 0; i < DRAW_PILE_SIZE; ++i) {
-      players[player].draw_pile.push_back(card++);
+      players[player].draw_pile.push_back(deck[next++]);
     }
   }
   begin_game();
