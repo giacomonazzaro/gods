@@ -145,9 +145,21 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
 
     auto set_zone =
       [&](const std::string& name, const std::vector<int>& cards) {
-        const int zone               = find_thing(table, name);
-        table.things[zone]._children = cards;
-        update_children_positions(zone, table, false);
+        const int container_id = find_thing(table, name);
+
+        // Fill container by keeping the order from table, so there is no visual
+        // reshuffling (thing order does not matter for game).
+        auto new_things = std::vector<int>();
+        for (auto thing_id : table.things[container_id].children()) {
+          auto it = find(cards, thing_id);
+          if (it != -1) new_things.push_back(thing_id);
+        }
+        for (auto card_id : cards) {
+          auto it = find(table.things[container_id].children(), card_id);
+          if (it == -1) new_things.push_back(card_id);
+        }
+        table.things[container_id]._children = new_things;
+        update_children_positions(container_id, table, true);
       };
 
     for (int player = 0; player < 2; ++player) {
@@ -319,7 +331,7 @@ std::vector<Thing> make_mindbug_zones(
     (float)window_height
   };
 
-  // Bottom seat: hand along the bottom edge, creatures in the half above it,
+  // Bottom player: hand along the bottom edge, creatures in the half above it,
   // draw pile and discard pile out on the flanks.
   Rectangle hand =
     place_inside(window, row_width, card_height, "center", "bottom", margin);
@@ -344,8 +356,8 @@ std::vector<Thing> make_mindbug_zones(
   };
 
   const int top_player = 1 - bottom_player;
-  auto      zone_name  = [](int seat, const char* zone) {
-    return "p" + std::to_string(seat) + "_" + zone;
+  auto      zone_name  = [](int player, const char* zone) {
+    return "p" + std::to_string(player) + "_" + zone;
   };
 
   // A draw pile is face down for both players; everything else is open.

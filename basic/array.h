@@ -167,6 +167,13 @@ inline size_t find(const array<Type>& arr, const Type& value) {
     return (size_t)-1;
 }
 
+template <typename Type, typename V>
+inline size_t find(const Type& arr, const V& value) {
+    for (size_t i = 0; i < arr.size(); ++i)
+        if (arr[i] == value) return i;
+    return (size_t)-1;
+}
+
 // check if array contains some value
 template <typename Type>
 inline bool contains(const array<Type>& arr, const Type& value) {
