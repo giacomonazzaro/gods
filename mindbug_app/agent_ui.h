@@ -19,4 +19,5 @@ struct Mindbug_Agent_UI : Agent_UI {
   void message(const std::string&) override {}
 
   int choose_action(Game& game, const Choice& choice) override;
+  int choose_action_internal(Game& game, const Choice& choice);
 };

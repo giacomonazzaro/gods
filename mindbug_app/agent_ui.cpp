@@ -15,27 +15,27 @@
 using namespace mindbug;
 
 // The attacking creature, named so the defender knows what is coming.
-static std::string attacker_name(const Game_State& state) {
-  if (state.attacker == -1) return "";
-  const int design = design_of(state.attacker);
+static std::string attacker_name(const Game_State& game) {
+  if (game.attacker == -1) return "";
+  const int design = design_of(game.attacker);
   return card_designs[design].name + " (" +
-         std::to_string(effective_power(state, state.attacker)) + ")";
+         std::to_string(effective_power(game, game.attacker)) + ")";
 }
 
 // What the player is being asked, by the name the game gives the choice.
-static std::string instruction(const Game_State& state, const Choice& choice) {
+static std::string instruction(const Game_State& game, const Choice& choice) {
   if (choice.description == "turn")
     return "Play a card from your hand, or attack with a creature";
   if (choice.description == "mindbug")
     return "Use a Mindbug to take this creature?";
   if (choice.description == "block")
-    return attacker_name(state) + " is attacking. Block it?";
+    return attacker_name(game) + " is attacking. Block it?";
   if (choice.description == "hunt")
-    return attacker_name(state) +
+    return attacker_name(game) +
            " is attacking. Choose the blocker, or leave the choice to the "
            "opponent";
   if (choice.description == "frenzy")
-    return attacker_name(state) + " survived. Attack a second time?";
+    return attacker_name(game) + " survived. Attack a second time?";
   if (choice.description == "defeat") return "Choose a creature to defeat";
   if (choice.description == "take-control")
     return "Choose a creature to take control of";
@@ -52,13 +52,16 @@ static int card_of_target(const Choice& choice, int target) {
   return target;
 }
 
-// The targets a Choose offers, in option order.
+// The targets a Choose offers, in option order. A choice that offers no card
+// targets at all — an option list — has none.
 static std::vector<int> targets_of(const Choose& actions) {
   if (auto* single = std::get_if<Choose_Card>(&actions)) {
     return std::vector<int>(single->targets.begin(), single->targets.end());
   }
-  const Choose_Cards& multiple = std::get<Choose_Cards>(actions);
-  return std::vector<int>(multiple.targets.begin(), multiple.targets.end());
+  if (auto* multiple = std::get_if<Choose_Cards>(&actions)) {
+    return std::vector<int>(multiple->targets.begin(), multiple->targets.end());
+  }
+  return {};
 }
 
 // The cards the pending choice can take are outlined here, over the table, so
@@ -66,14 +69,44 @@ static std::vector<int> targets_of(const Choose& actions) {
 // it again afterwards.
 static const Color CHOICE_COLOR = {255, 215, 0, 230};
 
-int Mindbug_Agent_UI::choose_action(Game& game, const Choice& choice) {
-  Game_State&  state   = static_cast<Game_State&>(game);
+int Mindbug_Agent_UI::choose_action(Game& game_abstract, const Choice& choice) {
+  auto action_index = choose_action_internal(game_abstract, choice);
+  if (action_index != -1) {
+    this->gesture_map.clear();
+  }
+  return action_index;
+}
+
+int Mindbug_Agent_UI::choose_action_internal(
+  Game& game_abstract, const Choice& choice
+) {
+  Game_State&  game    = static_cast<Game_State&>(game_abstract);
   auto&        table   = this->table;
   const Input& input   = *this->input;
   Choose       actions = choice.actions(game);
 
+  if (this->gesture_map.empty()) {
+    if (auto* options = std::get_if<Choose_Card>(&actions)) {
+      for (int i = 0; i < (int)options->targets.size(); ++i) {
+        auto card_id      = card_of_target(choice, options->targets[i]);
+        auto thing_id     = card_id;  // Cards assumed to have 1:1 mapping
+        auto action_id    = i;  // The choice answers with the option's index.
+        auto container_id = find_thing(table, "p0_creatures");
+
+        this->gesture_map[thing_id] = {
+          Agent_UI::Gesture{container_id, action_id}
+        };
+      }
+    }
+  }
+
+  auto drop = table.poll_dropped_thing();
+  if (drop) {
+    this->process_gestures(*drop);
+  }
+
   render_text(
-    instruction(state, choice),
+    instruction(game, choice),
     (float)tt::WINDOW_WIDTH / 2.0f - 300.0f,
     16.0f,
     22,
@@ -94,26 +127,35 @@ int Mindbug_Agent_UI::choose_action(Game& game, const Choice& choice) {
 
   std::vector<int> targets = targets_of(actions);
 
-  // One target to pick: highlight them all and take the one clicked.
-  if (std::holds_alternative<Choose_Card>(actions)) {
-    for (int i = 0; i < (int)targets.size(); ++i) {
-      const int card = card_of_target(choice, targets[i]);
-      if (card == -1) {
-        // A hunter leaves the choice to the defender; the defender lets the
-        // attack through.
-        const char* label = choice.description == "hunt" ? "Opponent chooses"
-                                                         : "Don't block";
-        if (immediate_button(button, label, input)) return i;
-        continue;
-      }
-      highlight_thing_border(table, card, CHOICE_COLOR);
-      if (thing_pressed(card, table, input)) return i;
-    }
-    return -1;
-  }
+  // One target to pick: it can be dragged onto the container its gesture
+  // names, or clicked where it lies.
+  // if (std::holds_alternative<Choose_Card>(actions)) {
+  //   if (auto drop = table.poll_dropped_thing()) {
+  //     const int action_index = process_gestures(*drop);
+  //     if (action_index != -1) return action_index;
+  //   }
+  //   for (int i = 0; i < (int)targets.size(); ++i) {
+  //     const int card = card_of_target(choice, targets[i]);
+  //     if (card == -1) {
+  //       // A hunter leaves the choice to the defender; the defender lets the
+  //       // attack through.
+  //       const char* label = choice.description == "hunt" ? "Opponent chooses"
+  //                                                        : "Don't block";
+  //       if (immediate_button(button, label, input)) return i;
+  //       continue;
+  //     }
+  //     highlight_thing_border(table, card, CHOICE_COLOR);
+  //     if (thing_pressed(card, table, input)) return i;
+  //   }
+  //   return -1;
+  // }
 
   // Several targets to pick: click to add to the selection, then confirm.
-  const Choose_Cards& multiple = std::get<Choose_Cards>(actions);
+  // Any other kind of choice is one this agent does not answer: it says "not
+  // yet" and the next frame asks again.
+  const Choose_Cards* multiple_or_null = std::get_if<Choose_Cards>(&actions);
+  if (!multiple_or_null) return -1;
+  const Choose_Cards& multiple = *multiple_or_null;
   for (int target : targets) {
     const int  card   = card_of_target(choice, target);
     const bool picked = std::find(selection.begin(), selection.end(), target) !=
