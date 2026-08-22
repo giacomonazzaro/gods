@@ -100,9 +100,14 @@ int Mindbug_Agent_UI::choose_action_internal(
     }
   }
 
-  auto drop = table.poll_dropped_thing();
-  if (drop) {
-    this->process_gestures(*drop);
+  auto drag = table.drag_state;
+  if (drag.thing_id() != -1) {
+    auto action_id = this->process_gestures(drag);
+    print(drag);
+    if (action_id != -1) {
+      printf("action_id: %d\n", action_id);
+      return action_id;
+    }
   }
 
   render_text(

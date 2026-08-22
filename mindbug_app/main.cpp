@@ -56,7 +56,9 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
     auto bottom_player = this->bottom_player;
     auto hot_seat      = this->hot_seat;
 
-    table.is_drop_allowed = [](int, int, int) { return false; };
+    table.is_drop_allowed = [&](int parent_id, int hovered_id, int thing_id) {
+      return hovered_id == find_thing(table, "p0_creatures");
+    };
 
     // One Thing per card of the deck; ids match the game's card indices. Only
     // the 20 dealt ever reach a zone, the rest stay off the table. The deal
@@ -193,7 +195,9 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
   // children are the cards of that zone. The pending choice re-reads its
   // targets from the game, so play continues from whatever was arranged.
   void update_game_from_table() override {
-    table.is_drop_allowed = [](int, int, int) { return false; };
+    table.is_drop_allowed = [&](int parent_id, int hovered_id, int thing_id) {
+      return hovered_id == find_thing(table, "p0_creatures");
+    };
 
     mindbug::Game_State& state = this->mindbug_game();
 

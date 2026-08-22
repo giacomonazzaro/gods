@@ -89,29 +89,31 @@ struct Agent_UI : Agent {
     int action_index;
   };
   std::unordered_map<int, std::vector<Gesture>> gesture_map;
-  int process_gestures(const Drop_Gesture& drop) {
+  int process_gestures(const Drag_State& drop) {
+    auto color = Color{255, 215, 0, 230};
+
     // Nothing is being dragged: show every thing a gesture can start from.
-    if (drop.thing_id == -1) {
+    if (drop.thing_id() == -1) {
       for (const auto& entry : gesture_map) {
-        highlight_thing_border(table, entry.first);
+        highlight_thing_border(table, entry.first, color);
       }
       return -1;
     }
 
     // A thing with no gesture goes nowhere.
-    auto it = gesture_map.find(drop.thing_id);
+    auto it = gesture_map.find(drop.thing_id());
     if (it == gesture_map.end()) return -1;
 
     auto thing_id = it->first;
 
     // Keep higlighting dragged thing, not the others.
-    highlight_thing_border(table, thing_id);
+    highlight_thing_border(table, thing_id, color);
 
     for (const Gesture& gesture : it->second) {
       // Highlight all possible drop options.
       // TODO: Fill the thing inside, not the border.
-      highlight_thing_border(table, gesture.container_id);
-      if (gesture.container_id == drop.to_parent) {
+      highlight_thing_border(table, gesture.container_id, color);
+      if (gesture.container_id == drop.hovered_id()) {
         return gesture.action_index;
       }
     }
