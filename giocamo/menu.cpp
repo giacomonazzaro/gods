@@ -178,7 +178,7 @@ Menu_Result run_menu(
       // Play vs AI button.
       auto play_vs_ai_rect =
         place_next(title_rect, 280, 50, "center", "bottom", 50);
-      if (menu_button(play_vs_ai_rect, "Play vs AI", input)) {
+      if (menu_button(play_vs_ai_rect, "Play vs Bot", input)) {
         Menu_Result r;
         r.mode = Menu_Result::VS_AI;
         // Note: window stays open; main() continues using it.

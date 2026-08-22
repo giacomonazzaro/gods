@@ -315,6 +315,7 @@ struct Drop_Gesture {
   int to_parent;
   int thing_id;
 };
+VISITABLE_STRUCT(Drop_Gesture, from_parent, to_parent, thing_id);
 
 inline bool operator==(const Drop_Gesture& a, const Drop_Gesture& b) {
   return a.from_parent == b.from_parent && a.to_parent == b.to_parent &&

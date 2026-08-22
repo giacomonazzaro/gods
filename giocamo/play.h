@@ -78,6 +78,7 @@ Agent* make_agent_pair(
   const Menu_Result& menu_result,
   bool               vs_ai
 );
+#include <struct/print.h>
 
 struct Agent_UI : Agent {
   Table_State table;
@@ -89,11 +90,30 @@ struct Agent_UI : Agent {
     int action_index;
   };
   std::unordered_map<int, std::vector<Gesture>> gesture_map;
-  int process_gestures(const Drag_State& drop) {
+
+  int process_gestures(
+    const Drag_State& drag, const std::optional<Drop_Gesture>& drop
+  ) {
     auto color = Color{255, 215, 0, 230};
 
+    if (drop) {
+      print(*drop);
+
+      // The drag is already cleared when the drop is recorded, so the thing
+      // that was dropped is the one the drop names.
+      // A thing with no gesture goes nowhere.
+      auto it = gesture_map.find(drop->thing_id);
+      if (it != gesture_map.end()) {
+        for (const Gesture& gesture : it->second) {
+          if (gesture.container_id == drop->to_parent) {
+            return gesture.action_index;
+          }
+        }
+      }
+    }
+
     // Nothing is being dragged: show every thing a gesture can start from.
-    if (drop.thing_id() == -1) {
+    if (drag.thing_id() == -1) {
       for (const auto& entry : gesture_map) {
         highlight_thing_border(table, entry.first, color);
       }
@@ -101,7 +121,7 @@ struct Agent_UI : Agent {
     }
 
     // A thing with no gesture goes nowhere.
-    auto it = gesture_map.find(drop.thing_id());
+    auto it = gesture_map.find(drag.thing_id());
     if (it == gesture_map.end()) return -1;
 
     auto thing_id = it->first;
@@ -110,12 +130,12 @@ struct Agent_UI : Agent {
     highlight_thing_border(table, thing_id, color);
 
     for (const Gesture& gesture : it->second) {
-      // Highlight all possible drop options.
+      // Highlight all possible drag options.
       // TODO: Fill the thing inside, not the border.
       highlight_thing_border(table, gesture.container_id, color);
-      if (gesture.container_id == drop.hovered_id()) {
-        return gesture.action_index;
-      }
+      // if (gesture.container_id == drag.hovered_id()) {
+      //   return gesture.action_index;
+      // }
     }
     return -1;
   }
@@ -143,9 +163,9 @@ struct Giocamo {
   virtual Agent* agent_player() { return &agent_ui; }
   virtual void   on_message(const nlohmann::json& msg) {}
 
-  // The agent that answers every seat. The default pairs the local player with
-  // one opponent; a game with three or more seats overrides it and builds an
-  // Agent_Seats of its own.
+  // The agent that answers every seat. The default pairs the local player
+  // with one opponent; a game with three or more seats overrides it and
+  // builds an Agent_Seats of its own.
   virtual Agent* make_seat_agent(const Menu_Result& menu_result, bool vs_ai) {
     return make_agent_pair(
       agent_player(), agent_opponent(), menu_result, vs_ai
@@ -160,16 +180,17 @@ struct Giocamo {
   virtual void save_state() {}
   virtual bool undo() { return false; }
   virtual bool redo() { return false; }
-  // The whole game state as JSON, and back. Online play sends this after every
-  // move, and the receiving side reads it and lays the table out again.
+  // The whole game state as JSON, and back. Online play sends this after
+  // every move, and the receiving side reads it and lays the table out again.
   virtual std::string game_state_to_json() const { return ""; }
   virtual void        game_state_from_json(const std::string& json) {}
   virtual bool        draw_game_editor() { return false; }
   virtual bool        load_game(const std::string& path) { return false; }
 };
 
-// Standard game loop. Runs the menu, initializes the game with the seat's seed,
-// lays the table out, then runs the table-top loop until the window closes.
+// Standard game loop. Runs the menu, initializes the game with the seat's
+// seed, lays the table out, then runs the table-top loop until the window
+// closes.
 void play_game(
   Giocamo& giocamo, Play_Options& options, const std::string& window_title
 );
@@ -209,8 +230,9 @@ struct History {
 };
 
 // A game derives from this instead of Giocamo directly to get undo. Copying a
-// position needs the concrete game type, which is why this layer is a template
-// — run_game still only ever sees Giocamo and calls the three hooks above.
+// position needs the concrete game type, which is why this layer is a
+// template — run_game still only ever sees Giocamo and calls the three hooks
+// above.
 template <typename Game_T>
 struct Giocamo_With_History : Giocamo {
   using Giocamo::Giocamo;
@@ -258,9 +280,9 @@ struct Giocamo_With_History : Giocamo {
     return edited;
   }
 
-  // --load: carry on from the snapshot. The pending choice is worked out again
-  // from the phase that was saved; effects that still owed a decision are not
-  // in the snapshot, so those are lost.
+  // --load: carry on from the snapshot. The pending choice is worked out
+  // again from the phase that was saved; effects that still owed a decision
+  // are not in the snapshot, so those are lost.
   bool load_game(const std::string& path) override {
     try {
       typed_game() = load_from_json<Game_T>(path);

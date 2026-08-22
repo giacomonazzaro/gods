@@ -101,9 +101,10 @@ int Mindbug_Agent_UI::choose_action_internal(
   }
 
   auto drag = table.drag_state;
-  if (drag.thing_id() != -1) {
-    auto action_id = this->process_gestures(drag);
-    print(drag);
+  auto drop = table.poll_dropped_thing();
+
+  {
+    auto action_id = this->process_gestures(drag, drop);
     if (action_id != -1) {
       printf("action_id: %d\n", action_id);
       return action_id;
