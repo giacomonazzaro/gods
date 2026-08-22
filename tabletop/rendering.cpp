@@ -188,10 +188,11 @@ void draw_background(const Input& input, float turn) {
   // pixel ratio into framebuffer pixels, and the y flipped.
   Screen_Fit fit         = screen_fit();
   float      pixel_ratio = (float)GetRenderWidth() / (float)GetScreenWidth();
-  float mouse[2] = {
+  float      mouse[2]    = {
     ((float)input.mouse_x * fit.scale + fit.offset_x) * pixel_ratio,
     (float)GetRenderHeight() -
-      ((float)input.mouse_y * fit.scale + fit.offset_y) * pixel_ratio};
+      ((float)input.mouse_y * fit.scale + fit.offset_y) * pixel_ratio
+  };
   static float mouse_animated[2] = {0, 0};
   if (mouse_animated[0] == 0 && mouse_animated[1] == 0) {
     mouse_animated[0] = mouse[0];
@@ -235,6 +236,34 @@ void draw_rectangle_rounded_lines_inward(
   }
   float inner_roundness = 2.0f * radius / std::min(inner.width, inner.height);
   DrawRectangleRoundedLinesEx(inner, inner_roundness, 8, width, color);
+}
+
+// A shape filled with one color. The shape is centered on the origin, so the
+// caller has already placed it.
+static void draw_shape_fill(const Shape& shape, Color color) {
+  Vector2 size = shape_size(shape);
+  std::visit(
+    [&](const auto& s) {
+      using S = std::decay_t<decltype(s)>;
+      if constexpr (std::is_same_v<S, Shape_Rectangle>) {
+        float w = size.x;
+        float h = size.y;
+        DrawRectangleRounded(
+          Rectangle{-w / 2.0f, -h / 2.0f, w, h},
+          s.corner_radius / std::min(w, h),
+          8,
+          color
+        );
+      } else if constexpr (std::is_same_v<S, Shape_Circle>) {
+        DrawCircleV({0.0f, 0.0f}, s.radius, color);
+      } else if constexpr (std::is_same_v<S, Shape_Hexagon>) {
+        DrawPoly({0.0f, 0.0f}, 6, s.radius, 0.0f, color);
+      } else {
+        DrawPoly({0.0f, 0.0f}, 3, s.radius, 0.0f, color);
+      }
+    },
+    shape
+  );
 }
 
 // The outline of a shape, drawn inside it. The shape is centered on the
@@ -339,24 +368,7 @@ void draw_thing(const Thing& thing, bool face_up) {
     );
   } else if (w > 0.0f && h > 0.0f) {
     // Fallback: solid color background matching the thing's shape.
-    std::visit(
-      [&](const auto& s) {
-        using S = std::decay_t<decltype(s)>;
-        if constexpr (std::is_same_v<S, Shape_Rectangle>) {
-          float r = s.corner_radius;
-          DrawRectangleRounded(
-            Rectangle{x, y, w, h}, r / std::min(w, h), 8, thing.color
-          );
-        } else if constexpr (std::is_same_v<S, Shape_Circle>) {
-          DrawCircleV({0.0f, 0.0f}, s.radius, thing.color);
-        } else if constexpr (std::is_same_v<S, Shape_Hexagon>) {
-          DrawPoly({0.0f, 0.0f}, 6, s.radius, 0.0f, thing.color);
-        } else {
-          DrawPoly({0.0f, 0.0f}, 3, s.radius, 0.0f, thing.color);
-        }
-      },
-      thing.shape
-    );
+    draw_shape_fill(thing.shape, thing.color);
   }
 
   // Border, drawn over the background and following the thing's shape.
@@ -484,13 +496,31 @@ void highlight_thing_border(
   table.highlights[thing_id] = color;
 }
 
-// The outline asked for by highlight_thing_border, drawn where the thing is
-// drawn: the thing's transform is already applied, so this only draws.
+void brighten_thing(Table_State& table, int thing_id, const Color& color) {
+  if (thing_id < 0 || thing_id >= (int)table.things.size()) return;
+  table.brightenings[thing_id] = color;
+}
+
+// What highlight_thing_border and brighten_thing asked for, drawn where the
+// thing is drawn: the thing's transform is already applied, so this only
+// draws.
 static void draw_highlight(int thing_id, const Table_State& state) {
+  const Thing& thing = state.things[thing_id];
+
+  auto brightening = state.brightenings.find(thing_id);
+  if (brightening != state.brightenings.end()) {
+    // BLEND_ADD_COLORS is a plain add of the two colors, alpha included, so
+    // the shape's color is added to what is already on the screen.
+    BeginBlendMode(BLEND_ADD_COLORS);
+    draw_shape_fill(thing.shape, brightening->second);
+    EndBlendMode();
+  }
+
   auto highlight = state.highlights.find(thing_id);
-  if (highlight == state.highlights.end()) return;
-  const float width = 5.0f;
-  draw_shape_border(state.things[thing_id].shape, width, highlight->second);
+  if (highlight != state.highlights.end()) {
+    const float width = 5.0f;
+    draw_shape_border(thing.shape, width, highlight->second);
+  }
 }
 
 // Walk the tree to draw each thing at its absolute world transform. No
@@ -584,9 +614,9 @@ void draw_table(Table_State& state, const Input& input) {
 #endif
 
   // Highlight the hovered drop target while dragging.
-  if (!state.drag_state.hovered_thing.empty()) {
-    draw_drop_placeholder(state.drag_state.hovered_id(), state);
-  }
+  // if (!state.drag_state.hovered_thing.empty()) {
+  //   draw_drop_placeholder(state.drag_state.hovered_id(), state);
+  // }
 
   // Depth-sort root's children so layered draw order is preserved.
   // const Thing&     root_thing = state.things[state.root];
@@ -620,8 +650,10 @@ void draw_table(Table_State& state, const Input& input) {
     rlPopMatrix();
   }
 
-  // Every outline asked for has been drawn; the next frame asks again.
+  // Every outline and brightening asked for has been drawn; the next frame
+  // asks again.
   state.highlights.clear();
+  state.brightenings.clear();
 
   // Optional table-level draw callback (custom HUD overlays), keyed by -1.
   // No specific thing here, so face_up is reported as true.

@@ -354,6 +354,9 @@ struct Table_State : Table_Layout {
   // in front of it covers it — then empties the map again.
   std::unordered_map<int, Color> highlights;
 
+  // The same, for the color brighten_thing adds on top of a thing.
+  std::unordered_map<int, Color> brightenings;
+
   Thing_Location                     zoomed_thing_id;
   std::function<bool(int, int, int)> is_drop_allowed;
 

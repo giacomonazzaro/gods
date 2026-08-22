@@ -36,6 +36,13 @@ void highlight_thing_border(
   const Color& color = {225, 60, 60, 255}
 );
 
+// Add `color` to the thing, alpha included, so it is drawn brighter. Drawn and
+// cleared like the outline above, so it lasts one frame and a thing in front
+// of it covers it.
+void brighten_thing(
+  Table_State& table, int thing_id, const Color& color = {30, 30, 30, 30}
+);
+
 // Push / pop the letterbox transform (see screen_fit) so drawing done in
 // logical canvas coordinates lands scaled and centered in the real window.
 void begin_screen_fit();

@@ -281,9 +281,14 @@ void handle_mouse_move(Table_State& state, const Input& input) {
     drag.allowed &= state.is_drop_allowed(
       drag.parent_id(), drag.hovered_id(), drag.thing_id()
     );
+    if (drag.parent_id() == drag.hovered_id()) {
+      // rearranging is always possible.
+      drag.allowed = true;
+    }
     if (drag.allowed) {
       break;
     }
+    // Go up one level.
     drag.hovered_thing.pop_back();
   }
 
@@ -383,7 +388,7 @@ Thing create_table_root(
   root.transform.y = (float)height / 2.0f;
   // Table surface filling the whole window (square, no rounded corners).
   std::get<Shape_Rectangle>(root.shape).corner_radius = 0.0f;
-  root.image_path                    = texture_path;
+  root.image_path                                     = texture_path;
   return root;
 }
 

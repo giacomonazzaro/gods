@@ -94,7 +94,7 @@ struct Agent_UI : Agent {
   int process_gestures(
     const Drag_State& drag, const std::optional<Drop_Gesture>& drop
   ) {
-    auto color = Color{255, 215, 0, 230};
+    auto color = Color{255, 200, 0, 255};
 
     if (drop) {
       print(*drop);
@@ -126,16 +126,13 @@ struct Agent_UI : Agent {
 
     auto thing_id = it->first;
 
-    // Keep higlighting dragged thing, not the others.
-    highlight_thing_border(table, thing_id, color);
-
     for (const Gesture& gesture : it->second) {
       // Highlight all possible drag options.
       // TODO: Fill the thing inside, not the border.
-      highlight_thing_border(table, gesture.container_id, color);
-      // if (gesture.container_id == drag.hovered_id()) {
-      //   return gesture.action_index;
-      // }
+      brighten_thing(table, gesture.container_id, {30, 30, 0, 30});
+      if (gesture.container_id == drag.hovered_id()) {
+        highlight_thing_border(table, gesture.container_id, color);
+      }
     }
     return -1;
   }
