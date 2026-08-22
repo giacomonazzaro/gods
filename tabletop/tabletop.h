@@ -349,6 +349,11 @@ struct Table_State : Table_Layout {
     std::function<void(const Table_State&, const Input&, bool)>>
     draw_callbacks;
 
+  // Things to outline, and in which color. highlight_thing_border fills this
+  // and draw_table draws each outline where that thing is drawn — so a thing
+  // in front of it covers it — then empties the map again.
+  std::unordered_map<int, Color> highlights;
+
   Thing_Location                     zoomed_thing_id;
   std::function<bool(int, int, int)> is_drop_allowed;
 

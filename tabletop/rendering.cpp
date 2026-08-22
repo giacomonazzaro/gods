@@ -478,18 +478,19 @@ static void apply_world_transform(const Transform2D& wt) {
 // --- highlight_thing_border ---
 
 void highlight_thing_border(
-  const Table_State& table, int thing_id, const Color& color
+  Table_State& table, int thing_id, const Color& color
 ) {
-  // The table is laid out before anything is drawn, so a thing that has no
-  // world transform yet is not on the screen either.
   if (thing_id < 0 || thing_id >= (int)table.things.size()) return;
-  if (thing_id >= (int)table.world_transforms_animated.size()) return;
+  table.highlights[thing_id] = color;
+}
 
+// The outline asked for by highlight_thing_border, drawn where the thing is
+// drawn: the thing's transform is already applied, so this only draws.
+static void draw_highlight(int thing_id, const Table_State& state) {
+  auto highlight = state.highlights.find(thing_id);
+  if (highlight == state.highlights.end()) return;
   const float width = 5.0f;
-  rlPushMatrix();
-  apply_world_transform(table.world_transforms_animated[thing_id]);
-  draw_shape_border(table.things[thing_id].shape, width, color);
-  rlPopMatrix();
+  draw_shape_border(state.things[thing_id].shape, width, highlight->second);
 }
 
 // Walk the tree to draw each thing at its absolute world transform. No
@@ -505,6 +506,7 @@ static void draw_thing_world(
     draw_thing(t, face_up);
     auto cb = state.draw_callbacks.find(id);
     if (cb != state.draw_callbacks.end()) cb->second(state, input, face_up);
+    draw_highlight(id, state);
     rlPopMatrix();
   }
   for (int child_id : state.things[id].children()) {
@@ -614,8 +616,12 @@ void draw_table(Table_State& state, const Input& input) {
     draw_thing(state.things[dragged], face_up);
     auto cb = state.draw_callbacks.find(dragged);
     if (cb != state.draw_callbacks.end()) cb->second(state, input, face_up);
+    draw_highlight(dragged, state);
     rlPopMatrix();
   }
+
+  // Every outline asked for has been drawn; the next frame asks again.
+  state.highlights.clear();
 
   // Optional table-level draw callback (custom HUD overlays), keyed by -1.
   // No specific thing here, so face_up is reported as true.

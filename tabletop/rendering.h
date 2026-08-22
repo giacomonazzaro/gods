@@ -27,11 +27,13 @@ void draw_rectangle_rounded_lines_inward(
   Rectangle rect, float roundness, float width, Color color
 );
 
-// Draw higlight around the thing in immediate mode.
+// Outline the thing. The outline is drawn by the next draw_table, where that
+// thing is drawn, so a thing lying in front of it covers the outline too. It
+// lasts one frame, so call this every frame the outline should be seen.
 void highlight_thing_border(
-  const Table_State& table,
-  int                thing_id,
-  const Color&       color = {225, 60, 60, 255}
+  Table_State& table,
+  int          thing_id,
+  const Color& color = {225, 60, 60, 255}
 );
 
 // Push / pop the letterbox transform (see screen_fit) so drawing done in
