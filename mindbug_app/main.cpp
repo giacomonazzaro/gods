@@ -243,8 +243,7 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
       /* rollout_depth        */ 0,
       /* exploration_constant */ 1.41421356f,
       /* total_time_budget */ 5.0,
-      /* fram_time_budget  */ 1.0 / 60.0,
-      /* num_threads       */ 1
+      /* fram_time_budget  */ 1.0 / 60.0
     );
 
     // A shallow alpha-beta at every leaf instead of a random rollout. It costs

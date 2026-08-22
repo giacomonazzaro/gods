@@ -6,7 +6,7 @@
 
 namespace scopa {
 
-float evaluate_state(Game_State& game, int player_index) {
+float evaluate_state(const Game_State& game, int player_index) {
   int my  = compute_player_score(game, player_index);
   int opp = compute_player_score(game, 1 - player_index);
   if (game.is_game_over()) {

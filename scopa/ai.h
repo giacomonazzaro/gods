@@ -7,7 +7,7 @@
 namespace scopa {
 
 // Heuristic state evaluation. Terminal states return +/-1000.
-float evaluate_state(Game_State& game, int player_index);
+float evaluate_state(const Game_State& game, int player_index);
 
 // Sample hidden information for an MCTS rollout: shuffle the opponent's
 // hand together with the stock and re-deal both. The calling player's hand

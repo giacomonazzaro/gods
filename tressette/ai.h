@@ -15,7 +15,7 @@ namespace tressette {
 extern bool use_normalized_evaluation;
 
 // Heuristic state evaluation from player_index's perspective.
-float evaluate_state(Game_State& game, int player_index);
+float evaluate_state(const Game_State& game, int player_index);
 
 // Sample hidden information: shuffle opponent_hand union stock, then redraw
 // the opponent's hand. The current player's hand is fully observed.

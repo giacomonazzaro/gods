@@ -323,8 +323,7 @@ struct Air_Land_Sea_Giocamo : Giocamo_With_History<Game_State> {
       /* rollout_depth        */ 0,
       /* exploration_constant */ 1.41421356f,
       /* total_time_budget    */ 3.0,
-      /* frame_time_budget    */ 1.0 / 60.0,
-      /* num_threads          */ 1
+      /* frame_time_budget    */ 1.0 / 60.0
     );
   }
 

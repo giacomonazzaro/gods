@@ -23,7 +23,7 @@ static float score_window(int player_count, int opponent_count) {
   return score;
 }
 
-float evaluate_state(Game_State& state, int player) {
+float evaluate_state(const Game_State& state, int player) {
   // Terminal positions dominate any heuristic estimate below.
   if (state.winner == player) return 1.0f;
   if (state.winner == 1 - player) return -1.0f;

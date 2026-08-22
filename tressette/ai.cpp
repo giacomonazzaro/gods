@@ -13,7 +13,7 @@ namespace tressette {
 // softmax rollout guidance is tuned for.
 bool use_normalized_evaluation = false;
 
-float evaluate_state(Game_State& game, int player_index) {
+float evaluate_state(const Game_State& game, int player_index) {
   const bool over       = game.is_game_over();
   const int  my_thirds  = compute_player_thirds(game, player_index);
   const int  opp_thirds = compute_player_thirds(game, 1 - player_index);

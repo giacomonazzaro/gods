@@ -8,6 +8,6 @@ namespace connect_four {
 // Connect Four is deterministic and perfect-information, and MCTS rollouts run
 // to a terminal position (rollout depth exceeds the 42-move cap), so a
 // terminal-only score is enough to guide the search.
-float evaluate_state(Game_State& state, int player);
+float evaluate_state(const Game_State& state, int player);
 
 }  // namespace connect_four
