@@ -188,11 +188,10 @@ void draw_background(const Input& input, float turn) {
   // pixel ratio into framebuffer pixels, and the y flipped.
   Screen_Fit fit         = screen_fit();
   float      pixel_ratio = (float)GetRenderWidth() / (float)GetScreenWidth();
-  float      mouse[2]    = {
+  float mouse[2] = {
     ((float)input.mouse_x * fit.scale + fit.offset_x) * pixel_ratio,
     (float)GetRenderHeight() -
-      ((float)input.mouse_y * fit.scale + fit.offset_y) * pixel_ratio
-  };
+      ((float)input.mouse_y * fit.scale + fit.offset_y) * pixel_ratio};
   static float mouse_animated[2] = {0, 0};
   if (mouse_animated[0] == 0 && mouse_animated[1] == 0) {
     mouse_animated[0] = mouse[0];
@@ -228,8 +227,7 @@ void draw_rectangle_rounded_lines_inward(
     rect.height - 2.0f * width
   };
   if (inner.width <= 0.0f || inner.height <= 0.0f) return;
-  float radius =
-    std::min(rect.width, rect.height) * roundness / 2.0f - width;
+  float radius = std::min(rect.width, rect.height) * roundness / 2.0f - width;
   if (radius <= 0.0f) {
     // DrawRectangleLinesEx already draws inside the rectangle.
     DrawRectangleLinesEx(rect, width, color);
@@ -237,6 +235,36 @@ void draw_rectangle_rounded_lines_inward(
   }
   float inner_roundness = 2.0f * radius / std::min(inner.width, inner.height);
   DrawRectangleRoundedLinesEx(inner, inner_roundness, 8, width, color);
+}
+
+// The outline of a shape, drawn inside it. The shape is centered on the
+// origin, so the caller has already placed it.
+static void draw_shape_border(const Shape& shape, float width, Color color) {
+  Vector2 size = shape_size(shape);
+  std::visit(
+    [&](const auto& s) {
+      using S = std::decay_t<decltype(s)>;
+      if constexpr (std::is_same_v<S, Shape_Rectangle>) {
+        float w = size.x;
+        float h = size.y;
+        draw_rectangle_rounded_lines_inward(
+          Rectangle{-w / 2.0f, -h / 2.0f, w, h},
+          s.corner_radius / std::min(w, h),
+          width,
+          color
+        );
+      } else if constexpr (std::is_same_v<S, Shape_Circle>) {
+        DrawRing(
+          {0.0f, 0.0f}, s.radius - width, s.radius, 0.0f, 360.0f, 32, color
+        );
+      } else if constexpr (std::is_same_v<S, Shape_Hexagon>) {
+        DrawPolyLinesEx({0.0f, 0.0f}, 6, s.radius, 0.0f, width, color);
+      } else {
+        DrawPolyLinesEx({0.0f, 0.0f}, 3, s.radius, 0.0f, width, color);
+      }
+    },
+    shape
+  );
 }
 
 // --- draw_thing_back ---
@@ -333,48 +361,7 @@ void draw_thing(const Thing& thing, bool face_up) {
 
   // Border, drawn over the background and following the thing's shape.
   if (thing.border_width > 0.0f) {
-    std::visit(
-      [&](const auto& s) {
-        using S = std::decay_t<decltype(s)>;
-        if constexpr (std::is_same_v<S, Shape_Rectangle>) {
-          draw_rectangle_rounded_lines_inward(
-            Rectangle{x, y, w, h},
-            s.corner_radius / std::min(w, h),
-            thing.border_width,
-            thing.border_color
-          );
-        } else if constexpr (std::is_same_v<S, Shape_Circle>) {
-          DrawRing(
-            {0.0f, 0.0f},
-            s.radius - thing.border_width,
-            s.radius,
-            0.0f,
-            360.0f,
-            32,
-            thing.border_color
-          );
-        } else if constexpr (std::is_same_v<S, Shape_Hexagon>) {
-          DrawPolyLinesEx(
-            {0.0f, 0.0f},
-            6,
-            s.radius,
-            0.0f,
-            thing.border_width,
-            thing.border_color
-          );
-        } else {
-          DrawPolyLinesEx(
-            {0.0f, 0.0f},
-            3,
-            s.radius,
-            0.0f,
-            thing.border_width,
-            thing.border_color
-          );
-        }
-      },
-      thing.shape
-    );
+    draw_shape_border(thing.shape, thing.border_width, thing.border_color);
   }
 
   // Counter: a number centered in the thing, sized relative to the thing.
@@ -486,6 +473,23 @@ static void apply_world_transform(const Transform2D& wt) {
   if (wt.rotation != 0.0f) {
     rlRotatef(wt.rotation, 0.0f, 0.0f, 1.0f);
   }
+}
+
+// --- highlight_thing_border ---
+
+void highlight_thing_border(
+  const Table_State& table, int thing_id, const Color& color
+) {
+  // The table is laid out before anything is drawn, so a thing that has no
+  // world transform yet is not on the screen either.
+  if (thing_id < 0 || thing_id >= (int)table.things.size()) return;
+  if (thing_id >= (int)table.world_transforms_animated.size()) return;
+
+  const float width = 5.0f;
+  rlPushMatrix();
+  apply_world_transform(table.world_transforms_animated[thing_id]);
+  draw_shape_border(table.things[thing_id].shape, width, color);
+  rlPopMatrix();
 }
 
 // Walk the tree to draw each thing at its absolute world transform. No

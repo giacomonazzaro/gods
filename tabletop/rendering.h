@@ -27,6 +27,13 @@ void draw_rectangle_rounded_lines_inward(
   Rectangle rect, float roundness, float width, Color color
 );
 
+// Draw higlight around the thing in immediate mode.
+void highlight_thing_border(
+  const Table_State& table,
+  int                thing_id,
+  const Color&       color = {225, 60, 60, 255}
+);
+
 // Push / pop the letterbox transform (see screen_fit) so drawing done in
 // logical canvas coordinates lands scaled and centered in the real window.
 void begin_screen_fit();

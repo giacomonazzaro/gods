@@ -11,12 +11,8 @@
 #include <raylib.h>
 
 std::function<void(const Table_State&, const Input&, bool)>
-make_card_draw_callback(
-  const mindbug::Game_State& state, int card, bool highlighted
-) {
-  return [&state,
-          card,
-          highlighted](const Table_State&, const Input&, bool face_up) {
+make_card_draw_callback(const mindbug::Game_State& state, int card) {
+  return [&state, card](const Table_State&, const Input&, bool face_up) {
     if (!face_up) return;
     const float half_width  = (float)tt::CARD_WIDTH / 2.0f;
     const float half_height = (float)tt::CARD_HEIGHT / 2.0f;
@@ -70,22 +66,6 @@ make_card_draw_callback(
       }
     }
 
-    // The border of a card the pending choice can take. Part of the card's
-    // face, so a card in front of it covers it like the rest of the card.
-    if (highlighted) {
-      DrawRectangleRoundedLinesEx(
-        Rectangle{
-          -half_width,
-          -half_height,
-          (float)tt::CARD_WIDTH,
-          (float)tt::CARD_HEIGHT
-        },
-        0.18f,
-        8,
-        5.0f,
-        Color{255, 215, 0, 230}
-      );
-    }
   };
 }
 

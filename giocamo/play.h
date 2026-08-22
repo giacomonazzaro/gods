@@ -4,6 +4,7 @@
 #include <giocamo/online/online.h>
 #include <struct/json.h>
 #include <tabletop/input_recorder.h>
+#include <tabletop/rendering.h>  // for highlight_thing_border()
 #include <tabletop/tabletop.h>
 #include <tabletop/ui.h>
 
@@ -83,6 +84,39 @@ struct Agent_UI : Agent {
   // The frame being drawn, so choose_action can read the mouse. The loop sets
   // it before asking the agent for a move.
   const Input* input = nullptr;
+  struct Gesture {
+    int container_id;  // where the thing is dropped
+    int action_index;
+  };
+  std::unordered_map<int, std::vector<Gesture>> gesture_map;
+  int process_gestures(const Drop_Gesture& drop) {
+    // Nothing is being dragged: show every thing a gesture can start from.
+    if (drop.thing_id == -1) {
+      for (const auto& entry : gesture_map) {
+        highlight_thing_border(table, entry.first);
+      }
+      return -1;
+    }
+
+    // A thing with no gesture goes nowhere.
+    auto it = gesture_map.find(drop.thing_id);
+    if (it == gesture_map.end()) return -1;
+
+    auto thing_id = it->first;
+
+    // Keep higlighting dragged thing, not the others.
+    highlight_thing_border(table, thing_id);
+
+    for (const Gesture& gesture : it->second) {
+      // Highlight all possible drop options.
+      // TODO: Fill the thing inside, not the border.
+      highlight_thing_border(table, gesture.container_id);
+      if (gesture.container_id == drop.to_parent) {
+        return gesture.action_index;
+      }
+    }
+    return -1;
+  }
 };
 
 struct Giocamo {

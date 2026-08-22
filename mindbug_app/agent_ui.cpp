@@ -8,8 +8,6 @@
 #include <string>
 #include <variant>
 
-#include "ui.h"
-
 // raylib last: its color macros (RED/GREEN/BLUE) would expand inside enums
 // otherwise.
 #include <raylib.h>
@@ -63,19 +61,10 @@ static std::vector<int> targets_of(const Choose& actions) {
   return std::vector<int>(multiple.targets.begin(), multiple.targets.end());
 }
 
-static void highlight_card(
-  Table_State& table, const mindbug::Game_State& state, int card
-) {
-  table.draw_callbacks[card] = make_card_draw_callback(state, card, true);
-}
-
-static void clear_highlights(
-  Table_State& table, const mindbug::Game_State& state
-) {
-  for (int card = 0; card < (int)mindbug::all_cards.size(); ++card) {
-    table.draw_callbacks[card] = make_card_draw_callback(state, card);
-  }
-}
+// The cards the pending choice can take are outlined here, over the table, so
+// the outline lasts only for the frame it is drawn in and nothing has to clear
+// it again afterwards.
+static const Color CHOICE_COLOR = {255, 215, 0, 230};
 
 int Mindbug_Agent_UI::choose_action(Game& game, const Choice& choice) {
   Game_State&  state   = static_cast<Game_State&>(game);
@@ -83,7 +72,6 @@ int Mindbug_Agent_UI::choose_action(Game& game, const Choice& choice) {
   const Input& input   = *this->input;
   Choose       actions = choice.actions(game);
 
-  clear_highlights(table, state);
   render_text(
     instruction(state, choice),
     (float)tt::WINDOW_WIDTH / 2.0f - 300.0f,
@@ -115,17 +103,11 @@ int Mindbug_Agent_UI::choose_action(Game& game, const Choice& choice) {
         // attack through.
         const char* label = choice.description == "hunt" ? "Opponent chooses"
                                                          : "Don't block";
-        if (immediate_button(button, label, input)) {
-          clear_highlights(table, state);
-          return i;
-        }
+        if (immediate_button(button, label, input)) return i;
         continue;
       }
-      highlight_card(table, state, card);
-      if (thing_pressed(card, table, input)) {
-        clear_highlights(table, state);
-        return i;
-      }
+      highlight_thing_border(table, card, CHOICE_COLOR);
+      if (thing_pressed(card, table, input)) return i;
     }
     return -1;
   }
@@ -136,7 +118,7 @@ int Mindbug_Agent_UI::choose_action(Game& game, const Choice& choice) {
     const int  card   = card_of_target(choice, target);
     const bool picked = std::find(selection.begin(), selection.end(), target) !=
                         selection.end();
-    if (!picked) highlight_card(table, state, card);
+    if (!picked) highlight_thing_border(table, card, CHOICE_COLOR);
     if (!picked && (int)selection.size() < multiple.count &&
         thing_pressed(card, table, input)) {
       selection.push_back(target);
@@ -167,7 +149,6 @@ int Mindbug_Agent_UI::choose_action(Game& game, const Choice& choice) {
   for (int i = 0; i < (int)combinations.size(); ++i) {
     if (combinations[i] != picked) continue;
     selection.clear();
-    clear_highlights(table, state);
     return i;
   }
   return -1;
