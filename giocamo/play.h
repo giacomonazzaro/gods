@@ -1,6 +1,7 @@
 #pragma once
 
 #include <game/agent.h>
+#include <giocamo/online/online.h>
 #include <struct/json.h>
 #include <tabletop/input_recorder.h>
 #include <tabletop/tabletop.h>
@@ -9,8 +10,6 @@
 #include <functional>
 #include <nlohmann/json.hpp>
 #include <optional>
-
-#include <giocamo/online/online.h>
 
 #include "menu.h"
 
@@ -108,6 +107,19 @@ struct Giocamo {
   virtual Agent* agent_player() { return &agent_ui; }
   virtual void   on_message(const nlohmann::json& msg) {}
 
+  // The agent that answers every seat. The default pairs the local player with
+  // one opponent; a game with three or more seats overrides it and builds an
+  // Agent_Seats of its own.
+  virtual Agent* make_seat_agent(const Menu_Result& menu_result, bool vs_ai) {
+    return make_agent_pair(
+      agent_player(), agent_opponent(), menu_result, vs_ai
+    );
+  }
+
+  // True when the lowest score wins, as in No Thanks!. The game-over screen
+  // reads this to name the winner.
+  virtual bool lower_score_wins() const { return false; }
+
   // Therse are implemented by Giocamo_With_History, no need to override.
   virtual void save_state() {}
   virtual bool undo() { return false; }
@@ -116,8 +128,8 @@ struct Giocamo {
   // move, and the receiving side reads it and lays the table out again.
   virtual std::string game_state_to_json() const { return ""; }
   virtual void        game_state_from_json(const std::string& json) {}
-  virtual bool draw_game_editor() { return false; }
-  virtual bool load_game(const std::string& path) { return false; }
+  virtual bool        draw_game_editor() { return false; }
+  virtual bool        load_game(const std::string& path) { return false; }
 };
 
 // Standard game loop. Runs the menu, initializes the game with the seat's seed,
@@ -169,7 +181,7 @@ struct Giocamo_With_History : Giocamo {
 
   History<Game_T> history;
 
-  Game_T& typed_game() { return static_cast<Game_T&>(game); }
+  Game_T&       typed_game() { return static_cast<Game_T&>(game); }
   const Game_T& typed_game() const { return static_cast<const Game_T&>(game); }
 
   void save_state() override { history.save(typed_game()); }

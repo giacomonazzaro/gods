@@ -75,20 +75,31 @@ Agent* make_duel(
 }
 
 static void draw_game_over_screen(const Giocamo& giocamo) {
-  auto scores      = giocamo.player_scores();
-  auto result_text = "";
-  if (scores[0] > scores[1])
-    result_text = "Player 1 wins!";
-  else if (scores[1] > scores[0])
-    result_text = "Player 2 wins!";
-  else
-    result_text = "It's a tie.";
+  auto scores = giocamo.player_scores();
+  bool lower  = giocamo.lower_score_wins();
 
-  const int   W          = tt::WINDOW_WIDTH;
-  const int   H          = tt::WINDOW_HEIGHT;
-  const char* title      = "GAME OVER";
-  std::string score_line = std::to_string(scores[0]) + " - " +
-                           std::to_string(scores[1]);
+  // The best score, and how many players share it.
+  int best = 0;
+  for (int player = 1; player < (int)scores.size(); ++player) {
+    bool better = lower ? scores[player] < scores[best]
+                        : scores[player] > scores[best];
+    if (better) best = player;
+  }
+  int tied = 0;
+  for (int score : scores) {
+    if (score == scores[best]) tied += 1;
+  }
+  std::string result_text =
+    tied > 1 ? "It's a tie." : "Player " + std::to_string(best + 1) + " wins!";
+
+  const int   W     = tt::WINDOW_WIDTH;
+  const int   H     = tt::WINDOW_HEIGHT;
+  const char* title = "GAME OVER";
+  std::string score_line;
+  for (int player = 0; player < (int)scores.size(); ++player) {
+    if (player > 0) score_line += " - ";
+    score_line += std::to_string(scores[player]);
+  }
 
   {
     DrawRectangle(0, 0, W, H, Color{0, 0, 0, 160});
@@ -316,10 +327,10 @@ static void run_game(
       }
     }
 
-    // Without a score screen to show, the game ending ends the loop. With
-    // one, the loop goes on and the branch above draws it from the next
-    // frame.
-    return state.is_game_over();  // && !giocamo.player_scores;
+    // The game ending does not end the loop: the branch above draws the
+    // game-over screen from the next frame on, and the loop ends when the
+    // window is closed.
+    return false;
   };
 
   run_tabletop(
@@ -358,9 +369,7 @@ void play_game(
   }
   giocamo.init_table();
 
-  Agent* agent = make_agent_pair(
-    giocamo.agent_player(), giocamo.agent_opponent(), menu_result, options.vs_ai
-  );
+  Agent* agent = giocamo.make_seat_agent(menu_result, options.vs_ai);
 
   // Nullable handle to the remote peer. Outside online mode this stays null
   // and every send/recv branch below short-circuits.

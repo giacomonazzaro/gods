@@ -17,6 +17,10 @@ constexpr int         HAND_SPREAD_X      = 160;
 constexpr int         PILE_SPREAD_Y      = -3;
 constexpr int         WONDERS_SPREAD_X   = 160;
 constexpr const char* FONT_PATH =
-  "./data/fonts/Cinzel/Cinzel-VariableFont_wght.ttf";
+  //"./data/fonts/Cinzel/Cinzel-VariableFont_wght.ttf";
+  // "./data/fonts/Rubik/Rubik-VariableFont_wght.ttf";
+  // "./data/fonts/PT_Sans/PTSans-Regular.ttf";
+  // "./data/fonts/fonts/Fraunces/Fraunces-VariableFont_SOFT,WONK,opsz,wght.ttf";
+  "./data/fonts/Fraunces/static/Fraunces_72pt-Regular.ttf";
 
 }  // namespace tt

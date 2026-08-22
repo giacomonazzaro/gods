@@ -134,6 +134,7 @@ std::vector<int> traverse_to_leaf_node(
   // Descend through expanded nodes until we reach a leaf.
   int                      node_index = 0;
   static thread_local auto path       = std::vector<int>();
+  // printf("depth: %d\n", path.size());
   path.clear();
   path.push_back(node_index);
   while (!nodes[node_index].children.empty()) {
@@ -539,7 +540,6 @@ struct Agent_MCTS : Agent {
         break;
       }
 
-
       if (total_time_budget > 0 &&  // if 0, no time budget
           total_elapsed_time >= total_time_budget) {
         printf(
@@ -587,8 +587,7 @@ struct Agent_MCTS_Stochastic : Agent {
     int   rollout_depth        = 64,
     float exploration_constant = 1.41421356f,
     float total_time_budget    = 0.0f,
-    float frame_time_budget    = 0.0f,
-    int   num_threads          = 0
+    float frame_time_budget    = 0.0f
   )
       : agents(
           num_samples,
@@ -605,7 +604,7 @@ struct Agent_MCTS_Stochastic : Agent {
 #else
             frame_time_budget,
 #endif
-            num_threads
+            1  // num_threads, serial subagents
           )
         ) {
     // agents.resize(num_samplesm);

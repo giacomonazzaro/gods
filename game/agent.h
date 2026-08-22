@@ -87,6 +87,27 @@ struct Agent_Duel : Agent {
   }
 };
 
+// One agent per seat, asked by the seat the choice belongs to. Agent_Duel does
+// this for two players; a game with more seats uses this one.
+struct Agent_Seats : Agent {
+  std::vector<Agent*> agents;
+
+  explicit Agent_Seats(std::vector<Agent*> agents)
+      : agents(std::move(agents)) {}
+
+  void message(const std::string& msg) override {
+    std::cout << "Seats: " << msg << "\n";
+  }
+
+  int choose_action(Game& state, const Choice& choice) override {
+    return agents[choice.player_index]->choose_action(state, choice);
+  }
+
+  void reset() override {
+    for (Agent* agent : agents) agent->reset();
+  }
+};
+
 inline auto   time_now() { return std::chrono::steady_clock::now(); }
 inline double time_elapsed_seconds(
   std::chrono::steady_clock::time_point start
