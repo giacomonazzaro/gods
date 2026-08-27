@@ -311,11 +311,12 @@ VISITABLE_STRUCT(Table_Layout, things, root);
 struct Input;
 
 struct Drop_Gesture {
-  int from_parent;
-  int to_parent;
-  int thing_id;
+  int  from_parent;
+  int  to_parent;
+  int  thing_id;
+  bool allowed;
 };
-VISITABLE_STRUCT(Drop_Gesture, from_parent, to_parent, thing_id);
+VISITABLE_STRUCT(Drop_Gesture, from_parent, to_parent, thing_id, allowed);
 
 inline bool operator==(const Drop_Gesture& a, const Drop_Gesture& b) {
   return a.from_parent == b.from_parent && a.to_parent == b.to_parent &&
@@ -445,6 +446,10 @@ inline bool key_down(const Input& input, int key) {
 inline int add_thing(Table_State& state, Thing thing) {
   const int id = (int)state.things.size();
   state.things.push_back(std::move(thing));
+  // draw_table grows these to match things, but process_input runs before it
+  // and hit-tests things by id, so they have to cover the new thing now.
+  state.world_transforms.resize(state.things.size());
+  state.world_transforms_animated.resize(state.things.size());
   return id;
 }
 
@@ -467,7 +472,7 @@ Thing_Location find_thing_at(
   float px, float py, const Table_State& state, int skip_id = -1
 );
 void handle_mouse_press(Table_State& state, const Input& input);
-void handle_mouse_release(Table_State& state);
+void handle_mouse_release(Table_State& state, const Input& input);
 void handle_mouse_move(Table_State& state, const Input& input);
 void handle_rotate_thing(
   Table_State& state, const Input& input, bool clockwise = true
@@ -501,6 +506,12 @@ void visit_things_recursive(
 template <typename F>
 void visit_things(Table_State& table, F&& f) {
   visit_things_recursive(table, -1, table.root, f);
+}
+
+inline void update_things_positions(Table_State& table, bool sort) {
+  visit_things(table, [sort](Table_State& table, int parent_id, int thing_id) {
+    update_children_positions(thing_id, table, sort);
+  });
 }
 
 inline void update_local_transform_to_match_world_transform(

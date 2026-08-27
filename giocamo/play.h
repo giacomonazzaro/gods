@@ -112,12 +112,9 @@ struct Agent_UI : Agent {
       }
     }
 
-    // Nothing is being dragged: show every thing a gesture can start from.
-    if (drag.thing_id() == -1) {
-      for (const auto& entry : gesture_map) {
-        highlight_thing_border(table, entry.first, color);
-      }
-      return -1;
+    // Show every thing a gesture can start from.
+    for (const auto& entry : gesture_map) {
+      highlight_thing_border(table, entry.first, color);
     }
 
     // A thing with no gesture goes nowhere.
@@ -125,7 +122,6 @@ struct Agent_UI : Agent {
     if (it == gesture_map.end()) return -1;
 
     auto thing_id = it->first;
-
     for (const Gesture& gesture : it->second) {
       // Highlight all possible drag options.
       // TODO: Fill the thing inside, not the border.

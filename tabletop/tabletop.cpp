@@ -198,35 +198,46 @@ void handle_mouse_press(Table_State& state, const Input& input) {
   drag.mouse_offset_y = my - world_pos_y;
 }
 
-void handle_mouse_release(Table_State& state) {
+void handle_mouse_release(Table_State& state, const Input& input) {
   // Mouse released — finalize the drop.
   Drag_State& drag     = state.drag_state;
   int         thing_id = drag.thing_id();
   if (thing_id < 0) return;
 
-  if (!drag.allowed) {
-    // Snap-back: reset drag first so update_children_positions doesn't skip
-    // the (still-dragged) card and leave it at the drop position. The card's
-    // world_transforms_animated still holds the drop pose, so animate() will
-    // glide it back to its slot.
-    int original_parent = drag.parent_id();
-    state.drag_state    = Drag_State();
-    update_children_positions(original_parent, state, /*sort=*/true);
-    return;
-  }
+  // if (!drag.allowed) {
+  //   // Snap-back: reset drag first so update_children_positions doesn't skip
+  //   // the (still-dragged) card and leave it at the drop position. The card's
+  //   // world_transforms_animated still holds the drop pose, so animate() will
+  //   // glide it back to its slot.
+  //   int original_parent = drag.parent_id();
+  //   state.drag_state    = Drag_State();
+  //   update_things_positions(state, /*sort=*/true);
+  // }
 
   assert(!drag.hovered_thing.empty());
 
-  // Capture the thing.s current world position (where the user let go) so the
+  auto hovered_thing = -1;
+  auto xxx =
+    find_thing_at(input.mouse_x, input.mouse_y, state, drag.thing_id());
+  if (xxx.size()) {
+    hovered_thing = xxx.back();
+  }
+  state.dropped_thing =
+    Drop_Gesture{drag.parent_id(), hovered_thing, thing_id, drag.allowed};
+
+  if (!drag.allowed) {
+    state.drag_state = Drag_State();
+    update_things_positions(state, true);
+    return;
+  }
+
+  // Capture the thing's current world position (where the user let go) so the
   // animation can lerp from that point — not from a stale rect that's about to
   // be reinterpreted in a different parent's coordinate space.
   Vector2 world_at_release = {
     state.world_transforms[thing_id].x,
     state.world_transforms[thing_id].y,
   };
-
-  state.dropped_thing =
-    Drop_Gesture{drag.parent_id(), drag.hovered_id(), thing_id};
 
   int original_parent = drag.parent_id();
   int new_parent      = drag.hovered_id();
@@ -240,14 +251,14 @@ void handle_mouse_release(Table_State& state) {
     //   update_children_positions(original_parent, state, /*sort=*/true);
     // }
     state.things[original_parent].remove_child(thing_id);
-    update_children_positions(original_parent, state, /*sort=*/true);
+    update_things_positions(state, /*sort=*/true);
   }
 
   // Add.
   update_local_transform_to_match_world_transform(state, new_parent, thing_id);
   state.world_transforms_animated[thing_id] = state.world_transforms[thing_id];
   state.things[new_parent].add_child(thing_id);
-  update_children_positions(new_parent, state, /*sort=*/true);
+  update_things_positions(state, /*sort=*/true);
 
   // Inherit visibility from new parent.
   state.things[thing_id].face_up = state.things[new_parent].face_up;
@@ -256,15 +267,22 @@ void handle_mouse_release(Table_State& state) {
 void handle_mouse_move(Table_State& state, const Input& input) {
   // Continuously update the dragged thing.s position.
   Drag_State& drag = state.drag_state;
-  if (drag.thing_id() < 0) return;
-
-  // Avoid that dragging away from a new parent doesn't leave a hole.
-  if (drag.hovered_id() >= 0 && drag.hovered_id() != state.root) {
-    update_children_positions(drag.hovered_id(), state, /*sort=*/true);
-  }
 
   float mx = (float)input.mouse_x;
   float my = (float)input.mouse_y;
+
+  if (drag.thing_id() < 0) {
+    // Pop the hovered thing up a little, so the player can see what the
+    // mouse is over.
+    auto path = find_thing_at(mx, my, state);
+    if (!input.left_pressed && !path.empty()) {
+      int hovered_thing = path.back();
+      state.world_transforms_animated.at(hovered_thing).y =
+        state.world_transforms.at(hovered_thing).y - 10;
+    }
+    return;
+  }
+  update_things_positions(state, /*sort=*/true);
 
   // Update world and local transforms so the thing follows the cursor.
   state.world_transforms[drag.thing_id()].x = mx - drag.mouse_offset_x;
@@ -293,10 +311,11 @@ void handle_mouse_move(Table_State& state, const Input& input) {
   }
 
   if (drag.allowed) {
-    update_children_positions(drag.parent_id(), state, /*sort=*/true);
-    if (drag.hovered_id() >= 0 && drag.hovered_id() != state.root) {
-      update_children_positions(drag.hovered_id(), state, /*sort=*/true);
-    }
+    update_things_positions(state, /*sort=*/true);
+    // update_children_positions(drag.parent_id(), state, /*sort=*/true);
+    // if (drag.hovered_id() >= 0 && drag.hovered_id() != state.root) {
+    //   update_children_positions(drag.hovered_id(), state, /*sort=*/true);
+    // }
   }
 }
 
@@ -324,7 +343,8 @@ void shuffle_thing(Table_State& state, int parent_id) {
   Thing&              thing = state.things[parent_id];
   static std::mt19937 rng{std::random_device{}()};
   std::shuffle(thing._children.begin(), thing._children.end(), rng);
-  update_children_positions(parent_id, state, /*sort=*/false);
+  update_things_positions(state, /*sort=*/true);
+  // update_children_positions(parent_id, state, /*sort=*/false);
 }
 
 void process_input(Table_State& state, const Input& input) {
@@ -334,7 +354,7 @@ void process_input(Table_State& state, const Input& input) {
   if (input.left_pressed) {
     handle_mouse_press(state, input);
   } else if (input.left_released) {
-    handle_mouse_release(state);
+    handle_mouse_release(state, input);
   }
 
   handle_mouse_move(state, input);

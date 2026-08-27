@@ -57,7 +57,12 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
     auto hot_seat      = this->hot_seat;
 
     table.is_drop_allowed = [&](int parent_id, int hovered_id, int thing_id) {
-      return hovered_id == find_thing(table, "p0_creatures");
+      std::string creatures_string = "p" + std::to_string(this->bottom_player) +
+                                     "_creatures";
+      std::string hand_string = "p" + std::to_string(this->bottom_player) +
+                                "_hand";
+      return (parent_id == find_thing(table, hand_string)) &&
+             (hovered_id == find_thing(table, creatures_string));
     };
 
     // One Thing per card of the deck; ids match the game's card indices. Only
