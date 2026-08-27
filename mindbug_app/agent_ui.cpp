@@ -68,7 +68,14 @@ static std::vector<int> targets_of(const Choose& actions) {
 // the outline lasts only for the frame it is drawn in and nothing has to clear
 // it again afterwards.
 static const Color CHOICE_COLOR = {255, 215, 0, 230};
-
+// The thing that has `thing_id` as a child, or -1 if none does (the root, or
+// an id not on the table).
+int parent_of(const Table_State& table, int thing_id) {
+  for (int id = 0; id < (int)table.things.size(); ++id) {
+    if (find(table.things[id].children(), thing_id) != -1) return id;
+  }
+  return -1;
+}
 int Mindbug_Agent_UI::choose_action(Game& game_abstract, const Choice& choice) {
   auto action_index = choose_action_internal(game_abstract, choice);
   if (action_index != -1) {
@@ -88,13 +95,24 @@ int Mindbug_Agent_UI::choose_action_internal(
   if (this->gesture_map.empty()) {
     if (auto* options = std::get_if<Choose_Card>(&actions)) {
       for (int i = 0; i < (int)options->targets.size(); ++i) {
-        auto card_id      = card_of_target(choice, options->targets[i]);
-        auto thing_id     = card_id;  // Cards assumed to have 1:1 mapping
-        auto action_id    = i;  // The choice answers with the option's index.
-        auto container_id = find_thing(table, "p0_creatures");
+        auto card_id   = card_of_target(choice, options->targets[i]);
+        auto thing_id  = card_id;  // Cards assumed to have 1:1 mapping
+        auto action_id = i;  // The choice answers with the option's index.
+        auto creature_container  = parent_of(table, thing_id);
+        auto target_container_id = -1;
+        if (choice.description == "turn" || choice.description == "block") {
+          if (table.things[creature_container].name == "p0_creatures") {
+            // It's attacking or blocking.
+            target_container_id = find_thing(table, "p1_creatures");
+          }
+          if (table.things[creature_container].name == "p0_hand") {
+            // Playing a creature.
+            target_container_id = find_thing(table, "p0_creatures");
+          }
+        }
 
         this->gesture_map[thing_id] = {
-          Agent_UI::Gesture{container_id, action_id}
+          Play_Gesture{target_container_id, action_id}
         };
       }
     }

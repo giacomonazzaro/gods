@@ -80,16 +80,18 @@ Agent* make_agent_pair(
 );
 #include <struct/print.h>
 
+struct Play_Gesture {
+  int container_id;  // where the thing is dropped
+  int action_index;
+};
+VISITABLE_STRUCT(Play_Gesture, container_id, action_index);
+
 struct Agent_UI : Agent {
   Table_State table;
   // The frame being drawn, so choose_action can read the mouse. The loop sets
   // it before asking the agent for a move.
-  const Input* input = nullptr;
-  struct Gesture {
-    int container_id;  // where the thing is dropped
-    int action_index;
-  };
-  std::unordered_map<int, std::vector<Gesture>> gesture_map;
+  const Input*                                       input = nullptr;
+  std::unordered_map<int, std::vector<Play_Gesture>> gesture_map;
 
   int process_gestures(
     const Drag_State& drag, const std::optional<Drop_Gesture>& drop
@@ -104,9 +106,26 @@ struct Agent_UI : Agent {
       // A thing with no gesture goes nowhere.
       auto it = gesture_map.find(drop->thing_id);
       if (it != gesture_map.end()) {
-        for (const Gesture& gesture : it->second) {
+        for (const Play_Gesture& gesture : it->second) {
           if (gesture.container_id == drop->to_parent) {
             return gesture.action_index;
+          }
+        }
+      }
+    } else if (input->left_pressed) {
+      // It's just click.
+      float mx = (float)this->input->mouse_x;
+      float my = (float)this->input->mouse_y;
+
+      auto thing_location = find_thing_at(mx, my, table);
+      if (thing_location.size()) {
+        auto thing_id = thing_location.back();
+        auto it       = gesture_map.find(thing_id);
+        if (it != gesture_map.end()) {
+          for (const Play_Gesture& gesture : it->second) {
+            if (gesture.container_id == -1) {
+              return gesture.action_index;
+            }
           }
         }
       }
@@ -122,7 +141,9 @@ struct Agent_UI : Agent {
     if (it == gesture_map.end()) return -1;
 
     auto thing_id = it->first;
-    for (const Gesture& gesture : it->second) {
+    for (const Play_Gesture& gesture : it->second) {
+      if (gesture.container_id == -1) continue;  // It's not dragging gesture.
+
       // Highlight all possible drag options.
       // TODO: Fill the thing inside, not the border.
       brighten_thing(table, gesture.container_id, {30, 30, 0, 30});
