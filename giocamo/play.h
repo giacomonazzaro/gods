@@ -93,10 +93,36 @@ struct Agent_UI : Agent {
   const Input*                                       input = nullptr;
   std::unordered_map<int, std::vector<Play_Gesture>> gesture_map;
 
+  // A thing clicked to start a click gesture (container_id == -1), waiting
+  // for the Done button to confirm it. -1 when nothing is selected.
+  int selected_thing_id = -1;
+
   int process_gestures(
     const Drag_State& drag, const std::optional<Drop_Gesture>& drop
   ) {
     auto color = Color{255, 200, 0, 255};
+
+    // Something is selected for a click gesture: show Done to confirm.
+    // Clicking anything else (the same thing, another thing, empty space)
+    // cancels the selection instead.
+    if (selected_thing_id != -1) {
+      auto selected_color = Color{0, 200, 255, 255};
+      highlight_thing_border(table, selected_thing_id, selected_color);
+      Rectangle button = place_on_screen(200, 46, "right", "center", 24);
+      if (immediate_button(button, "Done", *input)) {
+        int action_index = -1;
+        auto it = gesture_map.find(selected_thing_id);
+        if (it != gesture_map.end()) {
+          for (const Play_Gesture& gesture : it->second) {
+            if (gesture.container_id == -1) action_index = gesture.action_index;
+          }
+        }
+        selected_thing_id = -1;
+        return action_index;
+      }
+      if (input->left_pressed) selected_thing_id = -1;
+      return -1;
+    }
 
     if (drop) {
       print(*drop);
@@ -124,7 +150,8 @@ struct Agent_UI : Agent {
         if (it != gesture_map.end()) {
           for (const Play_Gesture& gesture : it->second) {
             if (gesture.container_id == -1) {
-              return gesture.action_index;
+              selected_thing_id = thing_id;
+              break;
             }
           }
         }

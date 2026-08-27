@@ -95,7 +95,9 @@ int Mindbug_Agent_UI::choose_action_internal(
   if (this->gesture_map.empty()) {
     if (auto* options = std::get_if<Choose_Card>(&actions)) {
       for (int i = 0; i < (int)options->targets.size(); ++i) {
-        auto card_id   = card_of_target(choice, options->targets[i]);
+        auto card_id = card_of_target(choice, options->targets[i]);
+        // No card: not a thing to click, answered by a button instead.
+        if (card_id == -1) continue;
         auto thing_id  = card_id;  // Cards assumed to have 1:1 mapping
         auto action_id = i;  // The choice answers with the option's index.
         auto creature_container  = parent_of(table, thing_id);
@@ -147,6 +149,19 @@ int Mindbug_Agent_UI::choose_action_internal(
       button.y += button.height + 14.0f;
     }
     return -1;
+  }
+
+  // A hunt or block choice can offer a "no card" option: leave the decision
+  // to the opponent, or let the attack through. Not a card to click, so it
+  // gets a button instead.
+  if (auto* options = std::get_if<Choose_Card>(&actions)) {
+    for (int i = 0; i < (int)options->targets.size(); ++i) {
+      if (card_of_target(choice, options->targets[i]) != -1) continue;
+      const char* label = choice.description == "hunt" ? "Opponent chooses"
+                                                        : "Don't block";
+      if (immediate_button(button, label, input)) return i;
+      button.y += button.height + 14.0f;
+    }
   }
 
   std::vector<int> targets = targets_of(actions);
