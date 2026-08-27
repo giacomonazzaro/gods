@@ -643,6 +643,9 @@ void draw_table(Table_State& state, const Input& input) {
     if (orig >= 0 && orig != state.root) face_up = state.things[orig].face_up;
     rlPushMatrix();
     apply_world_transform(state.world_transforms[dragged]);
+    // The thing is drawn 10% bigger while it is dragged, so it reads as lifted
+    // off the table.
+    rlScalef(1.1f, 1.1f, 1.0f);
     draw_thing(state.things[dragged], face_up);
     auto cb = state.draw_callbacks.find(dragged);
     if (cb != state.draw_callbacks.end()) cb->second(state, input, face_up);
