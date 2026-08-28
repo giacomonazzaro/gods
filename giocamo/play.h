@@ -8,9 +8,11 @@
 #include <tabletop/tabletop.h>
 #include <tabletop/ui.h>
 
+#include <algorithm>
 #include <functional>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <variant>
 
 #include "menu.h"
 
@@ -80,11 +82,36 @@ Agent* make_agent_pair(
 );
 #include <struct/print.h>
 
-struct Play_Gesture {
+// A button not tied to any thing on the table (e.g. "Don't block"). Stored
+// under gesture_map key -1, since it has no thing of its own.
+struct Gesture_Option {
+  std::string label;
+  int         action_index;
+};
+
+// Click the thing (the map's key) to select it, then confirm with Done.
+struct Gesture_Selection {
+  int action_index;
+};
+
+// Drag the thing (the map's key) and drop it onto container_id.
+struct Gesture_Drag_And_Drop {
   int container_id;  // where the thing is dropped
   int action_index;
 };
-VISITABLE_STRUCT(Play_Gesture, container_id, action_index);
+
+// One of several things that can be clicked in and out of a running
+// selection, confirmed once enough are picked. count/up_to are the same on
+// every thing offering this gesture for a given choice — they describe the
+// whole selection, not this one thing.
+struct Gesture_Multi_Select {
+  int  count;   // how many things the choice wants.
+  bool up_to;   // pick up to count, instead of exactly count.
+};
+
+using Play_Gesture = std::variant<
+  Gesture_Option, Gesture_Selection, Gesture_Drag_And_Drop,
+  Gesture_Multi_Select>;
 
 struct Agent_UI : Agent {
   Table_State table;
@@ -93,9 +120,16 @@ struct Agent_UI : Agent {
   const Input*                                       input = nullptr;
   std::unordered_map<int, std::vector<Play_Gesture>> gesture_map;
 
-  // A thing clicked to start a click gesture (container_id == -1), waiting
-  // for the Done button to confirm it. -1 when nothing is selected.
+  // A thing clicked to start a Gesture_Selection, waiting for the Done
+  // button to confirm it. -1 when nothing is selected.
   int selected_thing_id = -1;
+
+  // Things picked so far for a Gesture_Multi_Select.
+  std::vector<int> multi_selection;
+  // Turns the finished multi_selection into an action index — the mapping
+  // from a set of things to an action index is the game's to define. Set by
+  // the game alongside the Gesture_Multi_Select entries in gesture_map.
+  std::function<int(const std::vector<int>& things)> resolve_multi_selection;
 
   int process_gestures(
     const Drag_State& drag, const std::optional<Drop_Gesture>& drop
@@ -114,7 +148,9 @@ struct Agent_UI : Agent {
         auto it = gesture_map.find(selected_thing_id);
         if (it != gesture_map.end()) {
           for (const Play_Gesture& gesture : it->second) {
-            if (gesture.container_id == -1) action_index = gesture.action_index;
+            if (auto* selection = std::get_if<Gesture_Selection>(&gesture)) {
+              action_index = selection->action_index;
+            }
           }
         }
         selected_thing_id = -1;
@@ -122,6 +158,80 @@ struct Agent_UI : Agent {
       }
       if (input->left_pressed) selected_thing_id = -1;
       return -1;
+    }
+
+    // Buttons not tied to any thing, drawn where every other button is.
+    auto option_it = gesture_map.find(-1);
+    if (option_it != gesture_map.end()) {
+      Rectangle button = place_on_screen(200, 46, "right", "center", 24);
+      for (const Play_Gesture& gesture : option_it->second) {
+        auto* option = std::get_if<Gesture_Option>(&gesture);
+        if (!option) continue;
+        if (immediate_button(button, option->label, *input)) {
+          return option->action_index;
+        }
+        button.y += button.height + 14.0f;
+      }
+    }
+
+    // Several things can be toggled into a selection, confirmed once enough
+    // are picked.
+    {
+      int  multi_count = -1;
+      bool multi_up_to = false;
+      int  multi_total = 0;
+      for (const auto& entry : gesture_map) {
+        for (const Play_Gesture& gesture : entry.second) {
+          auto* multi = std::get_if<Gesture_Multi_Select>(&gesture);
+          if (!multi) continue;
+          multi_count = multi->count;
+          multi_up_to = multi->up_to;
+          multi_total += 1;
+        }
+      }
+
+      if (multi_count != -1) {
+        auto picked_color = Color{0, 200, 255, 255};
+        for (const auto& entry : gesture_map) {
+          int thing_id = entry.first;
+          bool has_multi = false;
+          for (const Play_Gesture& gesture : entry.second) {
+            if (std::holds_alternative<Gesture_Multi_Select>(gesture)) {
+              has_multi = true;
+            }
+          }
+          if (!has_multi) continue;
+
+          bool picked = std::find(
+                          multi_selection.begin(), multi_selection.end(),
+                          thing_id
+                        ) != multi_selection.end();
+          highlight_thing_border(
+            table, thing_id, picked ? picked_color : color
+          );
+          if (!picked && (int)multi_selection.size() < multi_count &&
+              thing_pressed(thing_id, table, *input)) {
+            multi_selection.push_back(thing_id);
+          }
+        }
+
+        bool complete = multi_up_to ||
+                        (int)multi_selection.size() == multi_count ||
+                        (int)multi_selection.size() == multi_total;
+        if (complete) {
+          std::string label = "Confirm " +
+                              std::to_string((int)multi_selection.size()) +
+                              "/" + std::to_string(multi_count);
+          Rectangle button = place_on_screen(200, 46, "right", "center", 24);
+          if (immediate_button(button, label, *input) &&
+              resolve_multi_selection) {
+            int action_index = resolve_multi_selection(multi_selection);
+            multi_selection.clear();
+            return action_index;
+          }
+        }
+        return -1;
+      }
     }
 
     if (drop) {
@@ -133,8 +243,9 @@ struct Agent_UI : Agent {
       auto it = gesture_map.find(drop->thing_id);
       if (it != gesture_map.end()) {
         for (const Play_Gesture& gesture : it->second) {
-          if (gesture.container_id == drop->to_parent) {
-            return gesture.action_index;
+          auto* drag_and_drop = std::get_if<Gesture_Drag_And_Drop>(&gesture);
+          if (drag_and_drop && drag_and_drop->container_id == drop->to_parent) {
+            return drag_and_drop->action_index;
           }
         }
       }
@@ -149,7 +260,7 @@ struct Agent_UI : Agent {
         auto it       = gesture_map.find(thing_id);
         if (it != gesture_map.end()) {
           for (const Play_Gesture& gesture : it->second) {
-            if (gesture.container_id == -1) {
+            if (std::holds_alternative<Gesture_Selection>(gesture)) {
               selected_thing_id = thing_id;
               break;
             }
@@ -167,15 +278,15 @@ struct Agent_UI : Agent {
     auto it = gesture_map.find(drag.thing_id());
     if (it == gesture_map.end()) return -1;
 
-    auto thing_id = it->first;
     for (const Play_Gesture& gesture : it->second) {
-      if (gesture.container_id == -1) continue;  // It's not dragging gesture.
+      auto* drag_and_drop = std::get_if<Gesture_Drag_And_Drop>(&gesture);
+      if (!drag_and_drop) continue;  // Not a dragging gesture.
 
       // Highlight all possible drag options.
       // TODO: Fill the thing inside, not the border.
-      brighten_thing(table, gesture.container_id, {30, 30, 0, 30});
-      if (gesture.container_id == drag.hovered_id()) {
-        highlight_thing_border(table, gesture.container_id, color);
+      brighten_thing(table, drag_and_drop->container_id, {30, 30, 0, 30});
+      if (drag_and_drop->container_id == drag.hovered_id()) {
+        highlight_thing_border(table, drag_and_drop->container_id, color);
       }
     }
     return -1;

@@ -52,22 +52,6 @@ static int card_of_target(const Choice& choice, int target) {
   return target;
 }
 
-// The targets a Choose offers, in option order. A choice that offers no card
-// targets at all — an option list — has none.
-static std::vector<int> targets_of(const Choose& actions) {
-  if (auto* single = std::get_if<Choose_Card>(&actions)) {
-    return std::vector<int>(single->targets.begin(), single->targets.end());
-  }
-  if (auto* multiple = std::get_if<Choose_Cards>(&actions)) {
-    return std::vector<int>(multiple->targets.begin(), multiple->targets.end());
-  }
-  return {};
-}
-
-// The cards the pending choice can take are outlined here, over the table, so
-// the outline lasts only for the frame it is drawn in and nothing has to clear
-// it again afterwards.
-static const Color CHOICE_COLOR = {255, 215, 0, 230};
 // The thing that has `thing_id` as a child, or -1 if none does (the root, or
 // an id not on the table).
 int parent_of(const Table_State& table, int thing_id) {
@@ -87,19 +71,28 @@ int Mindbug_Agent_UI::choose_action(Game& game_abstract, const Choice& choice) {
 int Mindbug_Agent_UI::choose_action_internal(
   Game& game_abstract, const Choice& choice
 ) {
-  Game_State&  game    = static_cast<Game_State&>(game_abstract);
-  auto&        table   = this->table;
-  const Input& input   = *this->input;
-  Choose       actions = choice.actions(game);
+  Game_State& game    = static_cast<Game_State&>(game_abstract);
+  auto&       table   = this->table;
+  Choose      actions = choice.actions(game);
 
   if (this->gesture_map.empty()) {
     if (auto* options = std::get_if<Choose_Card>(&actions)) {
       for (int i = 0; i < (int)options->targets.size(); ++i) {
-        auto card_id = card_of_target(choice, options->targets[i]);
-        // No card: not a thing to click, answered by a button instead.
-        if (card_id == -1) continue;
-        auto thing_id  = card_id;  // Cards assumed to have 1:1 mapping
+        auto card_id  = card_of_target(choice, options->targets[i]);
         auto action_id = i;  // The choice answers with the option's index.
+
+        if (card_id == -1) {
+          // No card: a hunt or block choice can offer to leave the decision
+          // to the opponent, or let the attack through. Not a thing to
+          // click, so it is a button instead, under the no-thing key.
+          const char* label = choice.description == "hunt"
+                               ? "Opponent chooses"
+                               : "Don't block";
+          this->gesture_map[-1].push_back(Gesture_Option{label, action_id});
+          continue;
+        }
+
+        auto thing_id            = card_id;  // Cards assumed to have 1:1 mapping
         auto creature_container  = parent_of(table, thing_id);
         auto target_container_id = -1;
         if (choice.description == "turn" || choice.description == "block") {
@@ -114,9 +107,46 @@ int Mindbug_Agent_UI::choose_action_internal(
         }
 
         this->gesture_map[thing_id] = {
-          Play_Gesture{target_container_id, action_id}
+          target_container_id == -1
+            ? Play_Gesture{Gesture_Selection{action_id}}
+            : Play_Gesture{Gesture_Drag_And_Drop{target_container_id, action_id}}
         };
       }
+    } else if (auto* options = std::get_if<Choose_Option>(&actions)) {
+      // The Mindbug decision is the only choice that isn't about a card.
+      for (int i = 0; i < (int)options->targets.size(); ++i) {
+        this->gesture_map[-1].push_back(Gesture_Option{options->targets[i], i});
+      }
+    } else if (auto* multi = std::get_if<Choose_Cards>(&actions)) {
+      // Choose_Cards is never a "turn" choice, so a target is already a card
+      // id (unlike Choose_Card, which can pack one, see card_of_target).
+      auto targets =
+        std::vector<int>(multi->targets.begin(), multi->targets.end());
+      for (int target : targets) {
+        this->gesture_map[target].push_back(
+          Gesture_Multi_Select{multi->count, multi->up_to}
+        );
+      }
+
+      int  count  = multi->count;
+      bool up_to  = multi->up_to;
+      this->resolve_multi_selection =
+        [targets, count, up_to](const std::vector<int>& picked) -> int {
+        // A combination lists its targets in the order `targets` has them,
+        // so the picks have to go in that order too — neither the order
+        // they were clicked in nor a sorted one.
+        auto ordered_picked = std::vector<int>();
+        for (int target : targets) {
+          if (std::find(picked.begin(), picked.end(), target) != picked.end())
+            ordered_picked.push_back(target);
+        }
+        std::vector<std::vector<int>> combinations =
+          target_combinations(targets, count, up_to);
+        for (int i = 0; i < (int)combinations.size(); ++i) {
+          if (combinations[i] == ordered_picked) return i;
+        }
+        return -1;
+      };
     }
   }
 
@@ -139,98 +169,8 @@ int Mindbug_Agent_UI::choose_action_internal(
     Color{255, 235, 150, 255}
   );
 
-  // Buttons run down the right-hand side, under the score line.
-  Rectangle button = place_on_screen(200, 46, "right", "center", 24);
-
-  // The Mindbug decision is the only choice that isn't about a card.
-  if (auto* options = std::get_if<Choose_Option>(&actions)) {
-    for (int i = 0; i < (int)options->targets.size(); ++i) {
-      if (immediate_button(button, options->targets[i], input)) return i;
-      button.y += button.height + 14.0f;
-    }
-    return -1;
-  }
-
-  // A hunt or block choice can offer a "no card" option: leave the decision
-  // to the opponent, or let the attack through. Not a card to click, so it
-  // gets a button instead.
-  if (auto* options = std::get_if<Choose_Card>(&actions)) {
-    for (int i = 0; i < (int)options->targets.size(); ++i) {
-      if (card_of_target(choice, options->targets[i]) != -1) continue;
-      const char* label = choice.description == "hunt" ? "Opponent chooses"
-                                                        : "Don't block";
-      if (immediate_button(button, label, input)) return i;
-      button.y += button.height + 14.0f;
-    }
-  }
-
-  std::vector<int> targets = targets_of(actions);
-
-  // One target to pick: it can be dragged onto the container its gesture
-  // names, or clicked where it lies.
-  // if (std::holds_alternative<Choose_Card>(actions)) {
-  //   if (auto drop = table.poll_dropped_thing()) {
-  //     const int action_index = process_gestures(*drop);
-  //     if (action_index != -1) return action_index;
-  //   }
-  //   for (int i = 0; i < (int)targets.size(); ++i) {
-  //     const int card = card_of_target(choice, targets[i]);
-  //     if (card == -1) {
-  //       // A hunter leaves the choice to the defender; the defender lets the
-  //       // attack through.
-  //       const char* label = choice.description == "hunt" ? "Opponent chooses"
-  //                                                        : "Don't block";
-  //       if (immediate_button(button, label, input)) return i;
-  //       continue;
-  //     }
-  //     highlight_thing_border(table, card, CHOICE_COLOR);
-  //     if (thing_pressed(card, table, input)) return i;
-  //   }
-  //   return -1;
-  // }
-
-  // Several targets to pick: click to add to the selection, then confirm.
-  // Any other kind of choice is one this agent does not answer: it says "not
-  // yet" and the next frame asks again.
-  const Choose_Cards* multiple_or_null = std::get_if<Choose_Cards>(&actions);
-  if (!multiple_or_null) return -1;
-  const Choose_Cards& multiple = *multiple_or_null;
-  for (int target : targets) {
-    const int  card   = card_of_target(choice, target);
-    const bool picked = std::find(selection.begin(), selection.end(), target) !=
-                        selection.end();
-    if (!picked) highlight_thing_border(table, card, CHOICE_COLOR);
-    if (!picked && (int)selection.size() < multiple.count &&
-        thing_pressed(card, table, input)) {
-      selection.push_back(target);
-    }
-  }
-
-  const bool complete = multiple.up_to ||
-                        (int)selection.size() == multiple.count ||
-                        (int)selection.size() == (int)targets.size();
-  if (!complete) return -1;
-
-  const std::string label = "Confirm " + std::to_string((int)selection.size()) +
-                            "/" + std::to_string(multiple.count);
-  if (!immediate_button(button, label, input)) return -1;
-
-  // Answer with the option holding exactly the picked targets. A combination
-  // lists its targets in the order `targets` has them, so the picks go in that
-  // order too — neither the order they were clicked in nor a sorted one.
-  auto picked = std::vector<int>();
-  for (int target : targets) {
-    if (std::find(selection.begin(), selection.end(), target) !=
-        selection.end())
-      picked.push_back(target);
-  }
-
-  std::vector<std::vector<int>> combinations =
-    target_combinations(targets, multiple.count, multiple.up_to);
-  for (int i = 0; i < (int)combinations.size(); ++i) {
-    if (combinations[i] != picked) continue;
-    selection.clear();
-    return i;
-  }
+  // Every gesture (card, button, or multi-select) is handled by
+  // process_gestures above, from the entries built at the top of this
+  // function; there is nothing left to check this frame.
   return -1;
 }
