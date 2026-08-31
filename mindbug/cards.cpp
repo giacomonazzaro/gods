@@ -112,27 +112,37 @@ static int next_random(Game_State& state, int bound) {
 // outside this file reads these structs directly.
 
 struct Card_Effects {
-  static void on_play(Game_State&, int) {}
-  static void on_attack(Game_State&, int) {}
-  static void on_defeated(Game_State&, int, int) {}
+  static void on_play(Game_State& state, int card) {}
+  static void on_attack(Game_State& state, int card) {}
+  static void on_defeated(Game_State& state, int card, int controller) {}
 
   // Power/keywords this card adds to another creature on its own side.
-  static int ally_power_bonus(const Game_State&, int, bool) { return 0; }
-  static int ally_keywords(const Game_State&, int, int) { return 0; }
+  static int ally_power_bonus(
+    const Game_State& state, int ally, bool its_turn
+  ) {
+    return 0;
+  }
+  static int ally_keywords(const Game_State& state, int ally, int card) {
+    return 0;
+  }
 
   // Power/keywords this card adds to itself.
-  static int self_power_bonus(const Game_State&, int) { return 0; }
-  static int self_keywords(const Game_State&, int) { return 0; }
+  static int self_power_bonus(const Game_State& state, int card) { return 0; }
+  static int self_keywords(const Game_State& state, int card) { return 0; }
 
   // Keywords this card copies from the enemy side.
-  static int mirrored_keywords(const Game_State&, int) { return 0; }
+  static int mirrored_keywords(const Game_State& state, int card) { return 0; }
 
   // Whether this card's own ability, or its presence as an ally, stops
   // `blocker` from blocking `attacker`.
-  static bool self_block_prevented(const Game_State&, int, int) {
+  static bool self_block_prevented(
+    const Game_State& state, int attacker, int blocker
+  ) {
     return false;
   }
-  static bool ally_block_prevented(const Game_State&, int, int, int) {
+  static bool ally_block_prevented(
+    const Game_State& state, int ally, int attacker, int blocker
+  ) {
     return false;
   }
 
@@ -147,9 +157,7 @@ struct Axolotl_Healer : Card_Effects {
 };
 
 struct Bee_Bear : Card_Effects {
-  static bool self_block_prevented(
-    const Game_State& state, int, int blocker
-  ) {
+  static bool self_block_prevented(const Game_State& state, int, int blocker) {
     return effective_power(state, blocker) <= 6;
   }
 };
@@ -247,9 +255,7 @@ struct Grave_Robber : Card_Effects {
     state.queue.push_back(make_choice(
       me,
       "play-from-discard",
-      [them](Game_State& game) {
-        return cards_of(game.players[them].discard);
-      },
+      [them](Game_State& game) { return cards_of(game.players[them].discard); },
       [me, them](Game_State& game, int card) {
         play_from_discard(game, them, me, card);
       }
@@ -302,7 +308,7 @@ struct Lone_Yeti : Card_Effects {
 
 struct Mysterious_Mermaid : Card_Effects {
   static void on_play(Game_State& state, int card) {
-    const int me = controller_of(state, card);
+    const int me           = controller_of(state, card);
     state.players[me].life = state.players[1 - me].life;
   }
 };
@@ -416,33 +422,33 @@ struct Urchin_Hurler : Card_Effects {
 // The design-to-struct mapping. A card with no ability has no row here and
 // falls back to Card_Effects. This is the only place that lists every card;
 // nothing else in the codebase needs to.
-#define MINDBUG_CARD_LIST                        \
-  X(AXOLOTL_HEALER, Axolotl_Healer)               \
-  X(BEE_BEAR, Bee_Bear)                           \
-  X(BRAIN_FLY, Brain_Fly)                         \
-  X(CHAMELEON_SNIPER, Chameleon_Sniper)           \
-  X(COMPOST_DRAGON, Compost_Dragon)               \
-  X(DEATHWEAVER, Deathweaver)                     \
-  X(ELEPHANTOPUS, Elephantopus)                   \
-  X(EXPLOSIVE_TOAD, Explosive_Toad)               \
-  X(FERRET_BOMBER, Ferret_Bomber)                 \
-  X(GIRAFFODILE, Giraffodile)                     \
-  X(GOBLIN_WEREWOLF, Goblin_Werewolf)             \
-  X(GRAVE_ROBBER, Grave_Robber)                   \
-  X(HARPY_MOTHER, Harpy_Mother)                   \
-  X(KANGASAURUS_REX, Kangasaurus_Rex)             \
-  X(KILLER_BEE, Killer_Bee)                       \
-  X(LONE_YETI, Lone_Yeti)                         \
-  X(MYSTERIOUS_MERMAID, Mysterious_Mermaid)       \
-  X(SHARK_DOG, Shark_Dog)                         \
+#define MINDBUG_CARD_LIST                               \
+  X(AXOLOTL_HEALER, Axolotl_Healer)                     \
+  X(BEE_BEAR, Bee_Bear)                                 \
+  X(BRAIN_FLY, Brain_Fly)                               \
+  X(CHAMELEON_SNIPER, Chameleon_Sniper)                 \
+  X(COMPOST_DRAGON, Compost_Dragon)                     \
+  X(DEATHWEAVER, Deathweaver)                           \
+  X(ELEPHANTOPUS, Elephantopus)                         \
+  X(EXPLOSIVE_TOAD, Explosive_Toad)                     \
+  X(FERRET_BOMBER, Ferret_Bomber)                       \
+  X(GIRAFFODILE, Giraffodile)                           \
+  X(GOBLIN_WEREWOLF, Goblin_Werewolf)                   \
+  X(GRAVE_ROBBER, Grave_Robber)                         \
+  X(HARPY_MOTHER, Harpy_Mother)                         \
+  X(KANGASAURUS_REX, Kangasaurus_Rex)                   \
+  X(KILLER_BEE, Killer_Bee)                             \
+  X(LONE_YETI, Lone_Yeti)                               \
+  X(MYSTERIOUS_MERMAID, Mysterious_Mermaid)             \
+  X(SHARK_DOG, Shark_Dog)                               \
   X(SHARKY_CRAB_DOG_MUMMYPUS, Sharky_Crab_Dog_Mummypus) \
-  X(SHIELD_BUGS, Shield_Bugs)                     \
-  X(SNAIL_HYDRA, Snail_Hydra)                     \
-  X(SNAIL_THROWER, Snail_Thrower)                 \
-  X(STRANGE_BARREL, Strange_Barrel)               \
-  X(TIGER_SQUIRREL, Tiger_Squirrel)               \
-  X(TURBO_BUG, Turbo_Bug)                         \
-  X(TUSKED_EXTORTER, Tusked_Extorter)             \
+  X(SHIELD_BUGS, Shield_Bugs)                           \
+  X(SNAIL_HYDRA, Snail_Hydra)                           \
+  X(SNAIL_THROWER, Snail_Thrower)                       \
+  X(STRANGE_BARREL, Strange_Barrel)                     \
+  X(TIGER_SQUIRREL, Tiger_Squirrel)                     \
+  X(TURBO_BUG, Turbo_Bug)                               \
+  X(TUSKED_EXTORTER, Tusked_Extorter)                   \
   X(URCHIN_HURLER, Urchin_Hurler)
 
 // Calls visit(ability), where `ability` is the struct for `design` (an empty,
