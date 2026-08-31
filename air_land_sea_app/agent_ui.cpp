@@ -159,11 +159,12 @@ int Air_Land_Sea_Agent_UI::choose_action_internal(
   }
 
   // Reinforce and every plain single-card choice (maneuver, ambush, disrupt,
-  // redeploy, ...) are answered entirely by process_gestures: a Gesture_Click
-  // per legal target, a Gesture_Option for a "decline" target if there is
-  // one. "transport" picks a card and then a theater, so it stays
-  // hand-written below — the map from thing clicked to action index isn't
-  // known until both picks are in.
+  // redeploy, ...) are answered entirely by process_gestures: a
+  // Gesture_Selection per legal target (click, then confirm with Done, so a
+  // misclick doesn't resolve the choice), a Gesture_Option for a "decline"
+  // target if there is one. "transport" picks a card and then a theater, so
+  // it stays hand-written below — the map from thing clicked to action index
+  // isn't known until both picks are in.
   if (this->gesture_map.empty() && choice.description != "transport") {
     for (int i = 0; i < (int)targets.size(); ++i) {
       if (targets[i] == DECLINE) {
@@ -175,7 +176,7 @@ int Air_Land_Sea_Agent_UI::choose_action_internal(
       int thing_id = choice.description == "reinforce"
                        ? theater_bar_thing(targets[i])
                        : targets[i];
-      this->gesture_map[thing_id].push_back(Gesture_Click{i});
+      this->gesture_map[thing_id].push_back(Gesture_Selection{i});
     }
   }
 

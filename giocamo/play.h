@@ -100,12 +100,6 @@ struct Gesture_Drag_And_Drop {
   int action_index;
 };
 
-// Click the thing (the map's key) to resolve the action immediately — no
-// drag, no confirmation step.
-struct Gesture_Click {
-  int action_index;
-};
-
 // One of several things that can be clicked in and out of a running
 // selection, confirmed once enough are picked. count/up_to are the same on
 // every thing offering this gesture for a given choice — they describe the
@@ -116,7 +110,7 @@ struct Gesture_Multi_Select {
 };
 
 using Play_Gesture = std::variant<
-  Gesture_Option, Gesture_Selection, Gesture_Drag_And_Drop, Gesture_Click,
+  Gesture_Option, Gesture_Selection, Gesture_Drag_And_Drop,
   Gesture_Multi_Select>;
 
 struct Agent_UI : Agent {
@@ -271,9 +265,6 @@ struct Agent_UI : Agent {
         auto it       = gesture_map.find(thing_id);
         if (it != gesture_map.end()) {
           for (const Play_Gesture& gesture : it->second) {
-            if (auto* click = std::get_if<Gesture_Click>(&gesture)) {
-              return click->action_index;
-            }
             if (std::holds_alternative<Gesture_Selection>(gesture)) {
               selected_thing_id = thing_id;
               break;
