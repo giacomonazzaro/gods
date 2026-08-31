@@ -3,6 +3,7 @@
 #include <game/agent.h>
 #include <game/game.h>
 #include <game/mcts.h>
+#include <game/minimax.h>
 #include <game/stochastic.h>
 #include <giocamo/menu.h>
 #include <giocamo/play.h>
@@ -29,29 +30,31 @@ using namespace air_land_sea;
 // to the right of and on top of the ones already there, so a covered card still
 // shows its left edge with its strength on it. The hand is along the player's
 // edge of the screen, the opponent's along the opposite one.
-static const float COLUMN_X[THEATER_COUNT] = {-540.0f, 0.0f, 540.0f};
-static constexpr float ROW_Y            = 150.0f;
-static constexpr float ROW_WIDTH        = 380.0f;
-static constexpr float ROW_SPREAD       = 46.0f;
-static constexpr float HAND_Y           = 371.0f;
-static constexpr float HAND_WIDTH       = 760.0f;
-static constexpr float HAND_SPREAD      = 160.0f;
-static constexpr float THEATER_WIDTH    = 200.0f;
-static constexpr float THEATER_HEIGHT   = 70.0f;
-static constexpr int   COUNTER_SIZE     = 80;
-static constexpr float STRENGTH_X       = -235.0f;  // Relative to the column.
-static constexpr float STRENGTH_Y       = 55.0f;
-static constexpr float POINTS_X         = -800.0f;
-static constexpr float POINTS_Y         = 180.0f;
-static constexpr float DECK_X           = 740.0f;
-static constexpr float DECK_Y           = 371.0f;
+static const float     COLUMN_X[THEATER_COUNT] = {-540.0f, 0.0f, 540.0f};
+static constexpr float ROW_Y                   = 150.0f;
+static constexpr float ROW_WIDTH               = 380.0f;
+static constexpr float ROW_SPREAD              = 46.0f;
+static constexpr float HAND_Y                  = 371.0f;
+static constexpr float HAND_WIDTH              = 760.0f;
+static constexpr float HAND_SPREAD             = 160.0f;
+static constexpr float THEATER_WIDTH           = 200.0f;
+static constexpr float THEATER_HEIGHT          = 70.0f;
+static constexpr int   COUNTER_SIZE            = 80;
+static constexpr float STRENGTH_X = -235.0f;  // Relative to the column.
+static constexpr float STRENGTH_Y = 55.0f;
+static constexpr float POINTS_X   = -800.0f;
+static constexpr float POINTS_Y   = 180.0f;
+static constexpr float DECK_X     = 740.0f;
+static constexpr float DECK_Y     = 371.0f;
 
 // Where the debug snapshot of the game is written and read.
 static const std::string SNAPSHOT_PATH = "data/debug_game_state.json";
 
 // Thing ids. The 18 cards come first, so a card's id is its card index.
 static int theater_bar_thing(int position) { return CARD_COUNT + position; }
-static int points_thing(int player) { return CARD_COUNT + THEATER_COUNT + player; }
+static int points_thing(int player) {
+  return CARD_COUNT + THEATER_COUNT + player;
+}
 static int strength_thing(int position, int player) {
   return CARD_COUNT + THEATER_COUNT + 2 + position * 2 + player;
 }
@@ -150,7 +153,7 @@ struct Air_Land_Sea_Giocamo : Giocamo_With_History<Game_State> {
   Air_Land_Sea_Giocamo(Game_State& game, Air_Land_Sea_Agent_UI& agent_ui)
       : Giocamo_With_History<Game_State>(game, agent_ui) {}
 
-  Game_State& als_game() { return static_cast<Game_State&>(game); }
+  Game_State&       als_game() { return static_cast<Game_State&>(game); }
   const Game_State& als_game() const {
     return static_cast<const Game_State&>(game);
   }
@@ -175,8 +178,8 @@ struct Air_Land_Sea_Giocamo : Giocamo_With_History<Game_State> {
     // The three theater cards. Which theater each one shows changes between
     // battles, so its color and name are set in update_table_from_game.
     for (int position = 0; position < THEATER_COUNT; ++position) {
-      auto bar  = Thing();
-      bar.shape = rectangle_shape({THEATER_WIDTH, THEATER_HEIGHT});
+      auto bar     = Thing();
+      bar.shape    = rectangle_shape({THEATER_WIDTH, THEATER_HEIGHT});
       bar.capacity = 0;
       table.things.push_back(std::move(bar));
       table.draw_callbacks[theater_bar_thing(position)] =
@@ -271,7 +274,7 @@ struct Air_Land_Sea_Giocamo : Giocamo_With_History<Game_State> {
     }
 
     for (int position = 0; position < THEATER_COUNT; ++position) {
-      const int bar = theater_bar_thing(position);
+      const int bar           = theater_bar_thing(position);
       table.things[bar].color = theater_color(state.theaters[position]);
       set_zone("t" + std::to_string(position), {bar});
     }
@@ -300,12 +303,14 @@ struct Air_Land_Sea_Giocamo : Giocamo_With_History<Game_State> {
 
       for (int position = 0; position < THEATER_COUNT; ++position) {
         for (int card : zone_things(side_zone_name(player, position))) {
-          state.board.push_back(Placement{
-            (uint8_t)card,
-            (uint8_t)position,
-            (uint8_t)player,
-            (uint8_t)(table.things[card].face_up ? 0 : 1)
-          });
+          state.board.push_back(
+            Placement{
+              (uint8_t)card,
+              (uint8_t)position,
+              (uint8_t)player,
+              (uint8_t)(table.things[card].face_up ? 0 : 1)
+            }
+          );
         }
       }
       state.points[player] =
@@ -317,6 +322,7 @@ struct Air_Land_Sea_Giocamo : Giocamo_With_History<Game_State> {
   }
 
   Agent* agent_opponent() override {
+    return new Agent_Minimax_Stochastic<Game_State>(5);
     return new Agent_MCTS_Stochastic<Game_State>(
       /* num_samples          */ 16,
       /* num_iterations       */ 99999999,

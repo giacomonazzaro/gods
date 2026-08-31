@@ -100,6 +100,12 @@ struct Gesture_Drag_And_Drop {
   int action_index;
 };
 
+// Click the thing (the map's key) to resolve the action immediately — no
+// drag, no confirmation step.
+struct Gesture_Click {
+  int action_index;
+};
+
 // One of several things that can be clicked in and out of a running
 // selection, confirmed once enough are picked. count/up_to are the same on
 // every thing offering this gesture for a given choice — they describe the
@@ -110,7 +116,7 @@ struct Gesture_Multi_Select {
 };
 
 using Play_Gesture = std::variant<
-  Gesture_Option, Gesture_Selection, Gesture_Drag_And_Drop,
+  Gesture_Option, Gesture_Selection, Gesture_Drag_And_Drop, Gesture_Click,
   Gesture_Multi_Select>;
 
 struct Agent_UI : Agent {
@@ -119,6 +125,11 @@ struct Agent_UI : Agent {
   // it before asking the agent for a move.
   const Input*                                       input = nullptr;
   std::unordered_map<int, std::vector<Play_Gesture>> gesture_map;
+
+  // Where process_gestures draws Done/Option/Confirm buttons. Defaults to the
+  // right edge, under the score line; a game with a different button rail
+  // overrides it (see Agent_UI's constructor).
+  Rectangle button_anchor = place_on_screen(200, 46, "right", "center", 24);
 
   // A thing clicked to start a Gesture_Selection, waiting for the Done
   // button to confirm it. -1 when nothing is selected.
@@ -142,7 +153,7 @@ struct Agent_UI : Agent {
     if (selected_thing_id != -1) {
       auto selected_color = Color{0, 200, 255, 255};
       highlight_thing_border(table, selected_thing_id, selected_color);
-      Rectangle button = place_on_screen(200, 46, "right", "center", 24);
+      Rectangle button = button_anchor;
       if (immediate_button(button, "Done", *input)) {
         int action_index = -1;
         auto it = gesture_map.find(selected_thing_id);
@@ -163,7 +174,7 @@ struct Agent_UI : Agent {
     // Buttons not tied to any thing, drawn where every other button is.
     auto option_it = gesture_map.find(-1);
     if (option_it != gesture_map.end()) {
-      Rectangle button = place_on_screen(200, 46, "right", "center", 24);
+      Rectangle button = button_anchor;
       for (const Play_Gesture& gesture : option_it->second) {
         auto* option = std::get_if<Gesture_Option>(&gesture);
         if (!option) continue;
@@ -222,7 +233,7 @@ struct Agent_UI : Agent {
           std::string label = "Confirm " +
                               std::to_string((int)multi_selection.size()) +
                               "/" + std::to_string(multi_count);
-          Rectangle button = place_on_screen(200, 46, "right", "center", 24);
+          Rectangle button = button_anchor;
           if (immediate_button(button, label, *input) &&
               resolve_multi_selection) {
             int action_index = resolve_multi_selection(multi_selection);
@@ -260,6 +271,9 @@ struct Agent_UI : Agent {
         auto it       = gesture_map.find(thing_id);
         if (it != gesture_map.end()) {
           for (const Play_Gesture& gesture : it->second) {
+            if (auto* click = std::get_if<Gesture_Click>(&gesture)) {
+              return click->action_index;
+            }
             if (std::holds_alternative<Gesture_Selection>(gesture)) {
               selected_thing_id = thing_id;
               break;

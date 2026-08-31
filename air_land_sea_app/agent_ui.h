@@ -8,13 +8,15 @@
 // for a card or a theater to be clicked (or for a button, where the choice is
 // not about either), and answers with the matching action index.
 struct Air_Land_Sea_Agent_UI : Agent_UI {
+  // Buttons run up from the bottom-left corner, beside the player's hand —
+  // the same rail the hand-written "turn"/"transport" buttons use below.
+  Air_Land_Sea_Agent_UI() {
+    button_anchor = place_on_screen(240, 46, "left", "bottom", 20);
+  }
+
   int  local_seat = 0;
   bool hot_seat   = false;
 
-  // A turn takes three picks: which card, face up or face down, and which
-  // theater. These hold the picks made so far. -1 means "not picked yet".
-  int picked_card = -1;
-  int picked_mode = -1;  // 0 = face up, 1 = face down.
   // Transport picks a card first and a theater second.
   int picked_transport = -1;
 
@@ -22,4 +24,5 @@ struct Air_Land_Sea_Agent_UI : Agent_UI {
   void reset() override;
 
   int choose_action(Game& game, const Choice& choice) override;
+  int choose_action_internal(Game& game, const Choice& choice);
 };

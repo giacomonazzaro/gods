@@ -47,12 +47,26 @@ static std::vector<int> targets_of(const Choose& actions) {
 }
 
 void Air_Land_Sea_Agent_UI::reset() {
-  picked_card      = -1;
-  picked_mode      = -1;
   picked_transport = -1;
+  // A card flipped in hand (see the "turn" handling below) is a stand-in for
+  // the mode the player is about to drop it in, not a real game state — put
+  // it back so a later hand doesn't inherit the flip.
+  for (int card = 0; card < CARD_COUNT; ++card) {
+    table.things[card].face_up = true;
+  }
 }
 
 int Air_Land_Sea_Agent_UI::choose_action(Game& game, const Choice& choice) {
+  auto action_index = choose_action_internal(game, choice);
+  if (action_index != -1) {
+    this->gesture_map.clear();
+  }
+  return action_index;
+}
+
+int Air_Land_Sea_Agent_UI::choose_action_internal(
+  Game& game, const Choice& choice
+) {
   Game_State&  state   = static_cast<Game_State&>(game);
   Table_State& table   = this->table;
   const Input& input   = *this->input;
@@ -60,7 +74,8 @@ int Air_Land_Sea_Agent_UI::choose_action(Game& game, const Choice& choice) {
   const auto   targets = targets_of(actions);
 
   // Every card and every theater starts plain; what the choice can take is
-  // highlighted below.
+  // highlighted below (by process_gestures for the choices it handles, by
+  // highlight_card/highlight_theater for the multi-step ones it doesn't).
   for (int card = 0; card < CARD_COUNT; ++card) {
     table.draw_callbacks[card] =
       make_card_draw_callback(state, card, local_seat, hot_seat);
@@ -78,6 +93,99 @@ int Air_Land_Sea_Agent_UI::choose_action(Game& game, const Choice& choice) {
       make_theater_draw_callback(state, position, true);
   };
 
+  // A turn: drag a card from hand onto a theater to play it. Face up is
+  // legal only in the card's own theater (or with Air Drop / Aerodrome);
+  // face down is legal anywhere. F flips the hovered or dragged card between
+  // the two, which changes which theaters it can be dropped on. The legal
+  // set depends on the flip, which can change every frame, so this map is
+  // rebuilt every frame rather than cached like the others below.
+  if (choice.description == "turn") {
+    this->gesture_map.clear();
+    int withdraw_index = -1;
+    for (int i = 0; i < (int)targets.size(); ++i) {
+      if (targets[i] == WITHDRAW_MOVE) {
+        withdraw_index = i;
+        continue;
+      }
+      const int  card      = move_card(targets[i]);
+      const int  position  = move_position(targets[i]);
+      const bool face_down = move_face_down(targets[i]);
+      if (face_down != !table.things[card].face_up) continue;
+      this->gesture_map[card].push_back(
+        Gesture_Drag_And_Drop{theater_bar_thing(position), i}
+      );
+    }
+    if (withdraw_index != -1) {
+      this->gesture_map[-1].push_back(
+        Gesture_Option{"Withdraw", withdraw_index}
+      );
+    }
+
+    // A drop is legal exactly where the map above says it is.
+    table.is_drop_allowed = [this](int, int hovered_id, int thing_id) {
+      auto it = this->gesture_map.find(thing_id);
+      if (it == this->gesture_map.end()) return false;
+      for (const Play_Gesture& gesture : it->second) {
+        auto* drag_and_drop = std::get_if<Gesture_Drag_And_Drop>(&gesture);
+        if (drag_and_drop && drag_and_drop->container_id == hovered_id) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    int flip_target = table.drag_state.thing_id();
+    if (flip_target < 0) {
+      auto hovered =
+        find_thing_at((float)input.mouse_x, (float)input.mouse_y, table);
+      if (!hovered.empty()) flip_target = hovered.back();
+    }
+    if (key_pressed(input, KEY_F) && this->gesture_map.count(flip_target)) {
+      table.things[flip_target].face_up = !table.things[flip_target].face_up;
+    }
+
+    auto drag       = table.drag_state;
+    auto drop       = table.poll_dropped_thing();
+    auto action_id  = this->process_gestures(drag, drop);
+    if (action_id != -1) {
+      reset();
+      return action_id;
+    }
+
+    render_text(
+      instruction(choice), 24.0f, 16.0f, 20, Color{255, 235, 150, 255}
+    );
+    return -1;
+  }
+
+  // Reinforce and every plain single-card choice (maneuver, ambush, disrupt,
+  // redeploy, ...) are answered entirely by process_gestures: a Gesture_Click
+  // per legal target, a Gesture_Option for a "decline" target if there is
+  // one. "transport" picks a card and then a theater, so it stays
+  // hand-written below — the map from thing clicked to action index isn't
+  // known until both picks are in.
+  if (this->gesture_map.empty() && choice.description != "transport") {
+    for (int i = 0; i < (int)targets.size(); ++i) {
+      if (targets[i] == DECLINE) {
+        const char* label =
+          choice.description == "reinforce" ? "Don't play it" : "Skip";
+        this->gesture_map[-1].push_back(Gesture_Option{label, i});
+        continue;
+      }
+      int thing_id = choice.description == "reinforce"
+                       ? theater_bar_thing(targets[i])
+                       : targets[i];
+      this->gesture_map[thing_id].push_back(Gesture_Click{i});
+    }
+  }
+
+  if (!this->gesture_map.empty()) {
+    auto drag = table.drag_state;
+    auto drop = table.poll_dropped_thing();
+    auto action_id = this->process_gestures(drag, drop);
+    if (action_id != -1) return action_id;
+  }
+
   // The opponent's hand runs along the top edge, so the line sits on a dark
   // strip to stay readable over the cards.
   const std::string text  = instruction(choice);
@@ -92,81 +200,9 @@ int Air_Land_Sea_Agent_UI::choose_action(Game& game, const Choice& choice) {
   Rectangle button = place_on_screen(240, 46, "left", "bottom", 20);
   auto      next_button = [&button] { button.y -= button.height + 12.0f; };
 
-  // ---- A turn: pick the card, then face up or face down, then the theater.
-  if (choice.description == "turn") {
-    int withdraw_index = -1;
-    for (int i = 0; i < (int)targets.size(); ++i) {
-      if (targets[i] == WITHDRAW_MOVE) withdraw_index = i;
-    }
-    if (withdraw_index != -1 && immediate_button(button, "Withdraw", input)) {
-      reset();
-      return withdraw_index;
-    }
-    next_button();
-
-    if (picked_card == -1) {
-      for (int target : targets) {
-        if (target == WITHDRAW_MOVE) continue;
-        const int card = move_card(target);
-        highlight_card(card);
-        if (thing_pressed(card, table, input)) picked_card = card;
-      }
-      return -1;
-    }
-    highlight_card(picked_card);
-
-    if (immediate_button(button, "Cancel", input)) {
-      reset();
-      return -1;
-    }
-    next_button();
-
-    if (picked_mode == -1) {
-      bool face_up_possible   = false;
-      bool face_down_possible = false;
-      for (int target : targets) {
-        if (target == WITHDRAW_MOVE || move_card(target) != picked_card)
-          continue;
-        if (move_face_down(target))
-          face_down_possible = true;
-        else
-          face_up_possible = true;
-      }
-      if (face_down_possible &&
-          immediate_button(button, "Play face down", input)) {
-        picked_mode = 1;
-      }
-      next_button();
-      if (face_up_possible && immediate_button(button, "Deploy face up", input))
-        picked_mode = 0;
-      return -1;
-    }
-
-    // Only the theaters this card may go to are left; one of them ends the
-    // turn.
-    auto matching = std::vector<int>();
-    for (int i = 0; i < (int)targets.size(); ++i) {
-      if (targets[i] == WITHDRAW_MOVE) continue;
-      if (move_card(targets[i]) != picked_card) continue;
-      if (move_face_down(targets[i]) != (picked_mode == 1)) continue;
-      matching.push_back(i);
-    }
-    if (matching.size() == 1) {
-      reset();
-      return matching[0];
-    }
-    for (int index : matching) {
-      const int position = move_position(targets[index]);
-      highlight_theater(position);
-      if (thing_pressed(theater_bar_thing(position), table, input)) {
-        reset();
-        return index;
-      }
-    }
-    return -1;
-  }
-
   // ---- Reinforce: the top card of the deck goes into a theater, or nowhere.
+  // The theater/decline targets are already handled by process_gestures
+  // above; only the "top of the deck" caption is drawn here.
   if (choice.description == "reinforce") {
     if (!state.deck.empty()) {
       const int         top  = state.deck.front();
@@ -181,15 +217,6 @@ int Air_Land_Sea_Agent_UI::choose_action(Game& game, const Choice& choice) {
         18,
         Color{255, 235, 150, 255}
       );
-    }
-    for (int i = 0; i < (int)targets.size(); ++i) {
-      if (targets[i] == DECLINE) {
-        if (immediate_button(button, "Don't play it", input)) return i;
-        next_button();
-        continue;
-      }
-      highlight_theater(targets[i]);
-      if (thing_pressed(theater_bar_thing(targets[i]), table, input)) return i;
     }
     return -1;
   }
@@ -229,14 +256,6 @@ int Air_Land_Sea_Agent_UI::choose_action(Game& game, const Choice& choice) {
   }
 
   // ---- Every other choice is a single card, sometimes with a way out.
-  for (int i = 0; i < (int)targets.size(); ++i) {
-    if (targets[i] == DECLINE) {
-      if (immediate_button(button, "Skip", input)) return i;
-      next_button();
-      continue;
-    }
-    highlight_card(targets[i]);
-    if (thing_pressed(targets[i], table, input)) return i;
-  }
+  // Already handled by process_gestures above.
   return -1;
 }
