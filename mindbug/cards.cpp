@@ -168,7 +168,9 @@ struct Brain_Fly : Card_Effects {
     state.queue.push_back(make_choice(
       me,
       "take-control",
-      [](Game_State& game) { return creature_targets(game, -1, 6, 99); },
+      [](Game_State& game) {
+        return creatures_with_power_in_range(game, -1, 6, 99);
+      },
       [me](Game_State& game, int target) { take_control(game, target, me); }
     ));
   }
@@ -212,7 +214,7 @@ struct Explosive_Toad : Card_Effects {
     state.queue.push_back(make_choice(
       controller,
       "defeat",
-      [](Game_State& game) { return creature_targets(game, -1, 0, 99); },
+      [](Game_State& game) { return creatures_in_play(game); },
       [](Game_State& game, int target) { defeat_creature(game, target); }
     ));
   }
@@ -270,7 +272,9 @@ struct Harpy_Mother : Card_Effects {
     state.queue.push_back(make_multi_choice(
       me,
       "take-control",
-      [them](Game_State& game) { return creature_targets(game, them, 0, 5); },
+      [them](Game_State& game) {
+        return creatures_with_power_in_range(game, them, 0, 5);
+      },
       2,
       true,
       [me](Game_State& game, const std::vector<int>& targets) {
@@ -283,8 +287,9 @@ struct Harpy_Mother : Card_Effects {
 struct Kangasaurus_Rex : Card_Effects {
   static void on_play(Game_State& state, int card) {
     const int them = 1 - controller_of(state, card);
-    // Snapshot first: defeating one creature can move the others around.
-    auto victims = creature_targets(state, them, 0, 4);
+    // Snapshot first: defeating one creature can change another one's power,
+    // for example if the one defeated is a Shield Bugs.
+    auto victims = creatures_with_power_in_range(state, them, 0, 4);
     for (int victim : victims) defeat_creature(state, victim);
   }
 };
@@ -320,7 +325,9 @@ struct Shark_Dog : Card_Effects {
     state.queue.push_back(make_choice(
       me,
       "defeat",
-      [them](Game_State& game) { return creature_targets(game, them, 6, 99); },
+      [them](Game_State& game) {
+        return creatures_with_power_in_range(game, them, 6, 99);
+      },
       [](Game_State& game, int target) { defeat_creature(game, target); }
     ));
   }
@@ -346,12 +353,12 @@ struct Snail_Hydra : Card_Effects {
   static void on_attack(Game_State& state, int card) {
     const int me   = controller_of(state, card);
     const int them = 1 - me;
-    if (creature_targets(state, me, 0, 99).size() <
-        creature_targets(state, them, 0, 99).size()) {
+    if (creatures_in_play(state, me).size() <
+        creatures_in_play(state, them).size()) {
       state.queue.push_back(make_choice(
         me,
         "defeat",
-        [](Game_State& game) { return creature_targets(game, -1, 0, 99); },
+        [](Game_State& game) { return creatures_in_play(game); },
         [](Game_State& game, int target) { defeat_creature(game, target); }
       ));
     }
@@ -386,7 +393,9 @@ struct Tiger_Squirrel : Card_Effects {
     state.queue.push_back(make_choice(
       me,
       "defeat",
-      [them](Game_State& game) { return creature_targets(game, them, 7, 99); },
+      [them](Game_State& game) {
+        return creatures_with_power_in_range(game, them, 7, 99);
+      },
       [](Game_State& game, int target) { defeat_creature(game, target); }
     ));
   }

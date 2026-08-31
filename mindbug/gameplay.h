@@ -18,7 +18,6 @@ bool load_card_designs(const std::string& path = "mindbug/cards.json");
 // 5 face down, and ask for the first decision.
 Game_State quick_setup(int seed);
 
-
 // A list of cards a choice offers, or of moves a player has. Held inline: the
 // search builds these on every node it looks at.
 using Targets    = Array_Inline<int, 8>;
@@ -40,10 +39,7 @@ int own_keywords(const Game_State& state, int card);
 // passed in because a loop over the creatures that could block works it out
 // once, and it is the same for every one of them.
 bool can_block(
-  const Game_State& state,
-  int               attacker,
-  int               attacker_keywords,
-  int               blocker
+  const Game_State& state, int attacker, int attacker_keywords, int blocker
 );
 
 // Take `card` out of one of a player's card lists. It is always in the list:
@@ -80,9 +76,12 @@ void take_control(Game_State& state, int card, int controller);
 
 void lose_life(Game_State& state, int player, int amount);
 
+// Every creature `controller` has in play; both players' if controller is -1.
+Targets creatures_in_play(const Game_State& state, int controller = -1);
+
 // Creatures a player has in play (-1 for either player) whose power is between
 // min_power and max_power.
-Targets creature_targets(
+Targets creatures_with_power_in_range(
   const Game_State& state, int controller, int min_power, int max_power
 );
 

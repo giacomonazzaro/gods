@@ -45,7 +45,16 @@ int own_keywords(const Game_State& state, int card) {
   return keywords_of(state, card, false);
 }
 
-Targets creature_targets(
+Targets creatures_in_play(const Game_State& state, int controller) {
+  auto targets = Targets();
+  for (int player = 0; player < 2; ++player) {
+    if (controller != -1 && player != controller) continue;
+    for (int card : state.players[player].creatures) targets.push_back(card);
+  }
+  return targets;
+}
+
+Targets creatures_with_power_in_range(
   const Game_State& state, int controller, int min_power, int max_power
 ) {
   auto targets = Targets();
@@ -61,10 +70,7 @@ Targets creature_targets(
 }
 
 bool can_block(
-  const Game_State& state,
-  int               attacker,
-  int               attacker_keywords,
-  int               blocker
+  const Game_State& state, int attacker, int attacker_keywords, int blocker
 ) {
   if (attacker_keywords & SNEAKY) {
     if (!(effective_keywords(state, blocker) & SNEAKY)) return false;
@@ -118,8 +124,8 @@ std::vector<std::vector<int>> target_combinations(
 }
 
 Choice make_choice(
-  int                                          player,
-  const char*                                  description,
+  int                                   player,
+  const char*                           description,
   std::function<Targets(Game_State&)>   get_targets,
   std::function<void(Game_State&, int)> on_chosen
 ) {
