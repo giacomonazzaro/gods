@@ -286,4 +286,71 @@ void trigger_defeated(Game_State& state, int card, int controller) {
   }
 }
 
+// ---- Standing abilities ----
+
+int ally_power_bonus(const Game_State& state, int ally, bool its_turn) {
+  switch (design_of(ally)) {
+    case SHIELD_BUGS: return 1;
+    case URCHIN_HURLER: return its_turn ? 2 : 0;
+    default: return 0;
+  }
+}
+
+int self_power_bonus(const Game_State& state, int card) {
+  const int controller = controller_of(state, card);
+  const bool its_turn = state.current_player == controller;
+  switch (design_of(card)) {
+    case GOBLIN_WEREWOLF: return its_turn ? 6 : 0;
+    case LONE_YETI:
+      return state.players[controller].creatures.size() == 1 ? 5 : 0;
+    default: return 0;
+  }
+}
+
+int ally_keywords(const Game_State& state, int ally, int card) {
+  switch (design_of(ally)) {
+    // Arms a weak ally with Hunter and Poisonous.
+    case SNAIL_THROWER:
+      return effective_power(state, card) <= 4 ? (HUNTER | POISONOUS) : 0;
+    default: return 0;
+  }
+}
+
+int self_keywords(const Game_State& state, int card) {
+  const int controller = controller_of(state, card);
+  switch (design_of(card)) {
+    case LONE_YETI:
+      return state.players[controller].creatures.size() == 1 ? FRENZY : 0;
+    default: return 0;
+  }
+}
+
+int mirrored_keywords(const Game_State& state, int card) {
+  if (design_of(card) != SHARKY_CRAB_DOG_MUMMYPUS) return 0;
+  const int controller = controller_of(state, card);
+  int       keywords   = 0;
+  for (int enemy : state.players[1 - controller].creatures) {
+    keywords |= own_keywords(state, enemy) &
+                (HUNTER | SNEAKY | FRENZY | POISONOUS);
+  }
+  return keywords;
+}
+
+bool block_prevented(const Game_State& state, int attacker, int blocker) {
+  const int power = effective_power(state, blocker);
+  if (design_of(attacker) == BEE_BEAR && power <= 6) return true;
+  // Elephantopus holds small blockers back on any attack from its side.
+  for (int ally : state.players[controller_of(state, attacker)].creatures) {
+    if (design_of(ally) == ELEPHANTOPUS && power <= 4) return true;
+  }
+  return false;
+}
+
+bool play_ability_suppressed(const Game_State& state, int controller) {
+  for (int enemy : state.players[1 - controller].creatures) {
+    if (design_of(enemy) == DEATHWEAVER) return true;
+  }
+  return false;
+}
+
 }  // namespace mindbug

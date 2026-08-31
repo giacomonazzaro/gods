@@ -31,14 +31,18 @@ int effective_power(const Game_State& state, int card);
 // Keywords the creature has right now, printed ones plus granted ones.
 int effective_keywords(const Game_State& state, int card);
 
+// Keywords from what's printed and from this side granting them, not from
+// copying the enemy's. Sharky uses this to see what the enemy has without
+// seeing its own copy of it.
+int own_keywords(const Game_State& state, int card);
+
 // True if `blocker` is allowed to block `attacker`. `attacker_keywords` is
-// passed in because a loop over the creatures that could block works them out
-// once, and they are the same for every one of them.
+// passed in because a loop over the creatures that could block works it out
+// once, and it is the same for every one of them.
 bool can_block(
   const Game_State& state,
   int               attacker,
   int               attacker_keywords,
-  bool              attacker_has_elephantopus,
   int               blocker
 );
 

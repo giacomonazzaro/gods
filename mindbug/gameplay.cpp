@@ -11,46 +11,38 @@ namespace mindbug {
 int effective_power(const Game_State& state, int card) {
   const int     controller = controller_of(state, card);
   const bool    its_turn   = state.current_player == controller;
-  const int     design     = design_of(card);
   const Player& player     = state.players[controller];
-  int           power      = card_designs[design].power;
+  int           power      = card_designs[design_of(card)].power;
 
   for (int ally : player.creatures) {
     if (ally == card) continue;
-    const int ally_design = design_of(ally);
-    if (ally_design == SHIELD_BUGS) power += 1;
-    if (ally_design == URCHIN_HURLER && its_turn) power += 2;
+    power += ally_power_bonus(state, ally, its_turn);
   }
-  if (design == GOBLIN_WEREWOLF && its_turn) power += 6;
-  if (design == LONE_YETI && player.creatures.size() == 1) power += 5;
+  power += self_power_bonus(state, card);
   return power;
 }
 
 // mirror=false stops Sharky from copying another Sharky's copied keywords.
 static int keywords_of(const Game_State& state, int card, bool mirror) {
   const int     controller = controller_of(state, card);
-  const int     design     = design_of(card);
   const Player& player     = state.players[controller];
-  int           keywords   = card_designs[design].keywords;
+  int           keywords   = card_designs[design_of(card)].keywords;
 
-  if (design == LONE_YETI && player.creatures.size() == 1) keywords |= FRENZY;
-  // The power is only worth working out when an ally can arm this creature.
+  keywords |= self_keywords(state, card);
   for (int ally : player.creatures) {
-    if (ally == card || design_of(ally) != SNAIL_THROWER) continue;
-    if (effective_power(state, card) <= 4) keywords |= HUNTER | POISONOUS;
-    break;
+    if (ally == card) continue;
+    keywords |= ally_keywords(state, ally, card);
   }
-  if (design == SHARKY_CRAB_DOG_MUMMYPUS && mirror) {
-    for (int enemy : state.players[1 - controller].creatures) {
-      keywords |= keywords_of(state, enemy, false) &
-                  (HUNTER | SNEAKY | FRENZY | POISONOUS);
-    }
-  }
+  if (mirror) keywords |= mirrored_keywords(state, card);
   return keywords;
 }
 
 int effective_keywords(const Game_State& state, int card) {
   return keywords_of(state, card, true);
+}
+
+int own_keywords(const Game_State& state, int card) {
+  return keywords_of(state, card, false);
 }
 
 Targets creature_targets(
@@ -72,16 +64,12 @@ bool can_block(
   const Game_State& state,
   int               attacker,
   int               attacker_keywords,
-  bool              attacker_has_elephantopus,
   int               blocker
 ) {
   if (attacker_keywords & SNEAKY) {
     if (!(effective_keywords(state, blocker) & SNEAKY)) return false;
   }
-  const int power = effective_power(state, blocker);
-  if (design_of(attacker) == BEE_BEAR && power <= 6) return false;
-
-  if (attacker_has_elephantopus && power <= 4) return false;
+  if (block_prevented(state, attacker, blocker)) return false;
   return true;
 }
 
@@ -205,11 +193,7 @@ void take_control(Game_State& state, int card, int controller) {
 void enter_play(Game_State& state, int card, int controller) {
   add_creature(state, card, controller);
   remove_card(state.exhausted_cards, card);  // Tough starts over.
-
-  // A Deathweaver on the other side switches the Play ability off.
-  for (int enemy : state.players[1 - controller].creatures) {
-    if (design_of(enemy) == DEATHWEAVER) return;
-  }
+  if (play_ability_suppressed(state, controller)) return;
   trigger_play(state, card);
 }
 
@@ -310,16 +294,10 @@ static Choice make_frenzy_choice(Game_State& state) {
 static Targets legal_blockers(const Game_State& state) {
   const int controller = controller_of(state, state.attacker);
   const int keywords   = effective_keywords(state, state.attacker);
-  // Elephantopus holds small blockers back for as long as its controller has
-  // it in play, not only on the attacks it makes itself.
-  bool elephantopus = false;
-  for (int ally : state.players[controller].creatures) {
-    if (design_of(ally) == ELEPHANTOPUS) elephantopus = true;
-  }
 
   auto blockers = Targets();
   for (int candidate : state.players[1 - controller].creatures) {
-    if (can_block(state, state.attacker, keywords, elephantopus, candidate)) {
+    if (can_block(state, state.attacker, keywords, candidate)) {
       blockers.push_back(candidate);
     }
   }
