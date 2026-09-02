@@ -186,6 +186,7 @@ void handle_mouse_press(Table_State& state, const Input& input) {
 
   int thing_id  = path.back();
   int parent_id = path[path.size() - 2];
+  if (state.things[thing_id].locked) return;
 
   Thing_Location parent_path(path.begin(), path.end() - 1);
   drag.dragged_thing = std::move(path);

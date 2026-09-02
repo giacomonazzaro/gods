@@ -61,22 +61,9 @@ int triplechess_piece_thing_on_square(int square) {
   return pool_index < 0 ? -1 : PIECE_THING_BASE + pool_index;
 }
 
-// Root-local center of a board square. Pieces are root children, so they
-// share the squares' coordinate space; this matches make_triplechess_squares().
-static Transform2D square_transform(int square) {
-  int   row    = square / triplechess::BOARD_SIZE;
-  int   col    = square % triplechess::BOARD_SIZE;
-  float center = ((float)triplechess::BOARD_SIZE - 1.0f) / 2.0f;
-  return Transform2D{
-    ((float)col - center) * (float)SCAMORRA_CELL,
-    (center - (float)row) * (float)SCAMORRA_CELL,
-    0.0f,
-  };
-}
-
 static Agent* make_minimax_agent() {
   return new Agent_Minimax<triplechess::Game_State>(
-    8  // max_depth
+    7  // max_depth
   );
 }
 
@@ -125,7 +112,27 @@ struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
   // detached piece Things, then a screen-filling root that parents the
   // squares.
   void init_table() override {
-    table.is_drop_allowed = [](int, int, int) { return false; };
+    // A piece may be dropped on a square its owner could legally move it to
+    // — that square itself if empty, or the piece standing there if it is a
+    // capture or a push (dragging over an occupied square hovers the piece on
+    // it, not the square underneath, so that piece's Thing is what has to
+    // match here).
+    table.is_drop_allowed = [this](int, int hovered_id, int thing_id) {
+      if (thing_id < PIECE_THING_BASE ||
+          thing_id >= PIECE_THING_BASE + PIECE_THING_COUNT) {
+        return false;
+      }
+      int from_square = square_of_thing[thing_id - PIECE_THING_BASE];
+      if (from_square < 0) return false;
+      for (const triplechess::Move& move :
+           triplechess::legal_moves(this->triplechess_game())) {
+        if (move.from != from_square) continue;
+        int dest_thing = triplechess_piece_thing_on_square(move.to);
+        int container  = dest_thing >= 0 ? dest_thing : move.to;
+        if (container == hovered_id) return true;
+      }
+      return false;
+    };
 
     std::vector<Thing> squares = make_triplechess_squares();
     std::vector<int>   square_ids;
@@ -177,10 +184,13 @@ struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
     auto root = create_table_root(
       tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT, "tabletop/data/wood.png"
     );
-    // update_table_from_game fills in the rest: the two rows and the pieces
-    // still on the board.
+    // Pieces are never root children — each one is a child of the square (or
+    // captured-row) Thing it sits in — so root's own children never change
+    // after this.
     root._children = square_ids;
-    table.root     = add_thing(table, std::move(root));
+    root._children.push_back(TAKEN_ROW_THING[0]);
+    root._children.push_back(TAKEN_ROW_THING[1]);
+    table.root = add_thing(table, std::move(root));
 
     int square_count = triplechess::BOARD_SIZE * triplechess::BOARD_SIZE;
     for (int square = 0; square < square_count; ++square)
@@ -190,51 +200,31 @@ struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
       value_of_thing[i]  = 0;
     }
 
-    // Per-frame overlay: cancel any table-top drag (Triplechess_Agent_UI drags
-    // a piece itself, by moving its world_transforms_animated directly, not
-    // through Drag_State) and pin the squares, highlight the picked piece's
-    // legal destinations, then the HUD.
+    // Per-frame overlay: just the HUD. Picking up a piece, highlighting its
+    // legal destinations, and dropping it are handled by
+    // Triplechess_Agent_UI's gesture_map, through process_gestures.
     table.draw_callbacks[-1] = [this](const Table_State&, const Input&, bool) {
-      triplechess::Game_State& state = this->triplechess_game();
-      table.drag_state               = Drag_State();
-      int square_count = triplechess::BOARD_SIZE * triplechess::BOARD_SIZE;
-      for (int square = 0; square < square_count; ++square) {
-        table.world_transforms_animated[square] =
-          table.world_transforms[square];
-      }
-
-      const int selected = this->triplechess_agent_ui().selected_square;
-      if (selected >= 0) {
-        const float half = (float)SCAMORRA_CELL / 2.0f;
-        float       sx   = table.world_transforms[selected].x;
-        float       sy   = table.world_transforms[selected].y;
-        DrawRectangleLinesEx(
-          Rectangle{
-            sx - half, sy - half, (float)SCAMORRA_CELL, (float)SCAMORRA_CELL
-          },
-          4.0f,
-          Color{60, 180, 90, 255}
-        );
-        for (const triplechess::Move& move : triplechess::legal_moves(state)) {
-          if (move.from != selected) continue;
-          float dx = table.world_transforms[move.to].x;
-          float dy = table.world_transforms[move.to].y;
-          DrawCircleV(Vector2{dx, dy}, 14.0f, Color{60, 180, 90, 160});
-        }
-      }
-
-      draw_triplechess_hud(state);
+      draw_triplechess_hud(this->triplechess_game());
     };
   }
 
   // Reconcile the piece Things with the board: the moving piece keeps its
-  // Thing (matched by value) and is repositioned onto the destination square,
-  // which is what makes the renderer slide it there. A pushed piece is freed
-  // and re-matched the same way, which is what makes it appear to hop one
-  // square further.
+  // Thing (matched by value) and is re-parented onto the destination square
+  // (a capacity-1 container), which is what makes the renderer slide it
+  // there. A pushed piece is freed and re-matched the same way, which is
+  // what makes it appear to hop one square further.
   void update_table_from_game() override {
     triplechess::Game_State& state = this->triplechess_game();
     int square_count = triplechess::BOARD_SIZE * triplechess::BOARD_SIZE;
+
+    // A drag-and-drop onto a capture or a push nests the moving piece under
+    // the piece standing on the destination square for one frame (that is
+    // what the cursor is actually hovering — see is_drop_allowed above), so
+    // every piece starts this rebuild with no children; the loops below are
+    // what give a square (or a captured row) its piece back.
+    for (int i = 0; i < PIECE_THING_COUNT; ++i) {
+      table.things[PIECE_THING_BASE + i]._children.clear();
+    }
 
     // Release every Thing whose square no longer holds its piece; remember
     // them as free so the squares that still need a piece can reuse them.
@@ -308,22 +298,30 @@ struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
       Thing& piece             = table.things[PIECE_THING_BASE + chosen];
       piece.shape = triplechess_piece_shape(triplechess::piece_type(value));
       piece.color = triplechess_piece_color(value);
-      // Setting the target square moves the Thing; the renderer slides it
-      // from wherever it was (the source square) to here.
-      piece.transform = square_transform(square);
+      // A square holds at most one piece, so its child sits centered on it
+      // (local origin) — reset here because a piece coming back from a
+      // captured row still carries that row's spread-out local transform.
+      piece.transform = Transform2D{};
+    }
+
+    // Every square's child is whichever piece Thing (if any) update_table
+    // just matched to it — the single source of truth for what is on the
+    // board, replacing anything left over from a drag.
+    for (int square = 0; square < square_count; ++square) {
+      int pool_index = thing_for_square[square];
+      table.things[square]._children =
+        pool_index < 0 ? std::vector<int>{}
+                       : std::vector<int>{PIECE_THING_BASE + pool_index};
     }
 
     // A Thing that holds a piece but sits on no square was captured. It keeps
     // its appearance and goes to the row for its player, and the renderer
     // slides it there from the square it was captured on.
-    auto on_board = std::vector<int>();
-    auto taken    = std::vector<std::vector<int>>(2);
+    auto taken = std::vector<std::vector<int>>(2);
     for (int i = 0; i < PIECE_THING_COUNT; ++i) {
       int value = value_of_thing[i];
       if (value == triplechess::EMPTY) continue;  // Never held a piece.
-      if (square_of_thing[i] >= 0) {
-        on_board.push_back(PIECE_THING_BASE + i);
-      } else {
+      if (square_of_thing[i] < 0) {
         taken[triplechess::piece_color(value)].push_back(PIECE_THING_BASE + i);
       }
     }
@@ -332,33 +330,26 @@ struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
       table.things[TAKEN_ROW_THING[color]]._children = taken[color];
       update_children_positions(TAKEN_ROW_THING[color], table, false);
     }
-
-    // The squares, then the two rows, then the pieces still on the board, so
-    // a piece always draws on top of the square it stands on.
-    std::vector<int>& root_children = table.things[table.root]._children;
-    root_children.clear();
-    for (int square = 0; square < square_count; ++square)
-      root_children.push_back(square);
-    root_children.push_back(TAKEN_ROW_THING[0]);
-    root_children.push_back(TAKEN_ROW_THING[1]);
-    for (int thing : on_board) root_children.push_back(thing);
   }
 
-  // Nothing is draggable, so the table never holds an arrangement the game
-  // does not already have.
+  // update_table_from_game rebuilds the whole tree from the board after every
+  // real move and snaps a rejected drag back on its own, so the table never
+  // holds an arrangement the game doesn't already have.
   void update_game_from_table() override {}
 
   // Watch mode: player 1 is the MCTS bot. Otherwise the human plays against
   // the minimax bot.
   Agent* agent_opponent() override {
     // if (watch)
-    return new Agent_Async(make_mcts_agent());
-    // return new Agent_Async(make_minimax_agent());
+    // return new Agent_Async(make_mcts_agent());
+    return new Agent_Async(make_minimax_agent());
   }
 
   // Watch mode: player 0 is the minimax bot instead of the player.
   Agent* agent_player() override {
-    if (watch) return new Agent_Async(make_minimax_agent());
+    // if (watch) return new Agent_Async(make_minimax_agent());
+    // return new Agent_Async(make_mcts_agent());
+
     return &agent_ui;
   }
 

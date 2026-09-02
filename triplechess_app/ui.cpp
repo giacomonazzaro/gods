@@ -26,6 +26,8 @@ std::vector<Thing> make_triplechess_squares() {
       bool dark          = (row + col) % 2 == 0;
       square.color       = dark ? Color{150, 110, 70, 255}
                                 : Color{235, 210, 170, 255};
+      square.locked      = true;
+      square.capacity    = 1;  // Holds at most one piece.
       squares.push_back(square);
     }
   }

@@ -8,12 +8,13 @@
 
 #include <string>
 
-// UI agent for triplechess: press down on a piece with a legal move to pick it
-// up, drag it, and release over a destination square to move it there.
-// Releasing anywhere else puts it back.
+// UI agent for triplechess: drag a piece onto a square it can legally move
+// to (or onto the piece standing there, for a capture or a push) to make
+// that move. gesture_map (rebuilt from legal_moves each turn) and
+// process_gestures, both from giocamo/play.h, do the picking up,
+// highlighting, and dropping — the same as every other game built on
+// giocamo.
 struct Triplechess_Agent_UI : Agent_UI {
-  int selected_square = -1;  // Square being dragged from, or -1.
-
   void message(const std::string&) override {}
   int  choose_action(Game& game, const Choice& choice) override;
 };

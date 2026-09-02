@@ -176,6 +176,7 @@ struct Thing {
   std::string image_path   = "";
 
   Transform2D transform = {};
+  bool        locked    = false;
 
   // A thing was assumed to be a rectangle before, centered at (0,0).
   Shape   shape   = Shape_Rectangle{};
@@ -211,6 +212,7 @@ VISITABLE_STRUCT(
   shape,
   counter,
   transform,
+  locked,
   face_up,
   depth,
   capacity,
