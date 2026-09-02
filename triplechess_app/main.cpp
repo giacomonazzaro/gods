@@ -244,8 +244,12 @@ struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
 
     // Fill each square that needs a piece. Prefer a freed Thing of the same
     // value (the piece that actually moved, or was pushed — it slides over),
-    // then any freed Thing, then a piece taken earlier that is back on the
-    // board (an undo), then a spare (first placement).
+    // then a piece taken earlier that is back on the board (an undo brings a
+    // captured piece back before its own square is processed, so this has to
+    // come before the "any freed Thing" check below — otherwise that check
+    // could grab a freed Thing of the wrong value for this square, leaving
+    // no freed Thing left for the square that actually needs it), then any
+    // freed Thing, then a spare (first placement).
     bool used[PIECE_THING_COUNT];
     for (int k = 0; k < freed_count; ++k) used[k] = false;
     for (int square = 0; square < square_count; ++square) {
@@ -264,18 +268,18 @@ struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
         }
       }
       if (chosen < 0) {
-        for (int k = 0; k < freed_count; ++k) {
-          if (!used[k]) {
-            chosen  = freed[k];
-            used[k] = true;
+        for (int i = 0; i < PIECE_THING_COUNT; ++i) {
+          if (square_of_thing[i] < 0 && value_of_thing[i] == value) {
+            chosen = i;
             break;
           }
         }
       }
       if (chosen < 0) {
-        for (int i = 0; i < PIECE_THING_COUNT; ++i) {
-          if (square_of_thing[i] < 0 && value_of_thing[i] == value) {
-            chosen = i;
+        for (int k = 0; k < freed_count; ++k) {
+          if (!used[k]) {
+            chosen  = freed[k];
+            used[k] = true;
             break;
           }
         }
