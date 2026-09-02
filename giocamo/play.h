@@ -136,6 +136,19 @@ struct Agent_UI : Agent {
   // the game alongside the Gesture_Multi_Select entries in gesture_map.
   std::function<int(const std::vector<int>& things)> resolve_multi_selection;
 
+  // Called after undo/redo (see play.cpp) and whenever a search agent would
+  // drop its own cached state. gesture_map is built from the choice at hand
+  // and selected_thing_id/multi_selection track picks made against it, so
+  // once undo/redo swaps that choice out from under them, all three are
+  // stale — a leftover gesture_map entry could still map a drag or a click to
+  // an action index from the position that no longer exists. Clearing them
+  // here makes choose_action rebuild fresh next frame.
+  void reset() override {
+    gesture_map.clear();
+    selected_thing_id = -1;
+    multi_selection.clear();
+  }
+
   int process_gestures(
     const Drag_State& drag, const std::optional<Drop_Gesture>& drop
   ) {
