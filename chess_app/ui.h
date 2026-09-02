@@ -25,3 +25,8 @@ Color chess_piece_color(int piece);
 
 // HUD: whose turn it is / check / the result once the game ends.
 void draw_chess_hud(const chess::Game_State& state);
+
+// The piece Thing-id standing on `square` (see main.cpp), or -1 if the
+// square is empty. Pieces are children of the square they sit on, so this is
+// how other code finds which piece Thing a given board square holds.
+int chess_piece_thing_on_square(int square);

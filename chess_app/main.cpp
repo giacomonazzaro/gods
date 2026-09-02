@@ -53,16 +53,9 @@ int value_of_thing[PIECE_THING_COUNT];  // Piece value each pool Thing shows, 0
                                         // if it has never held one.
 }  // namespace
 
-// Root-local center of a board square. Pieces are root children, so they share
-// the squares' coordinate space; this matches make_chess_squares().
-static Transform2D square_transform(int square) {
-  int row = square / 8;
-  int col = square % 8;
-  return Transform2D{
-    ((float)col - 3.5f) * (float)CHESS_CELL,
-    (3.5f - (float)row) * (float)CHESS_CELL,
-    0.0f,
-  };
+int chess_piece_thing_on_square(int square) {
+  int pool_index = thing_for_square[square];
+  return pool_index < 0 ? -1 : PIECE_THING_BASE + pool_index;
 }
 
 // Image file for a piece value, e.g. white knight -> "...pieces/wN.png". The
@@ -125,7 +118,27 @@ struct Chess_Giocamo : Giocamo_With_History<chess::Game_State> {
   // One square Thing per board slot (id == board index), 32 detached piece
   // Things, then a screen-filling root that parents the squares.
   void init_table() override {
-    table.is_drop_allowed = [](int, int, int) { return false; };
+    // A piece may be dropped on a square its owner could legally move it to
+    // — that square itself if empty, or the piece standing there if it is a
+    // capture (dragging over an occupied square hovers the piece on it, not
+    // the square underneath, so that piece's Thing is what has to match
+    // here).
+    table.is_drop_allowed = [this](int, int hovered_id, int thing_id) {
+      if (thing_id < PIECE_THING_BASE ||
+          thing_id >= PIECE_THING_BASE + PIECE_THING_COUNT) {
+        return false;
+      }
+      int from_square = square_of_thing[thing_id - PIECE_THING_BASE];
+      if (from_square < 0) return false;
+      for (const chess::Move& move :
+           chess::legal_moves(this->chess_game())) {
+        if (move.from != from_square) continue;
+        int dest_thing = chess_piece_thing_on_square(move.to);
+        int container   = dest_thing >= 0 ? dest_thing : move.to;
+        if (container == hovered_id) return true;
+      }
+      return false;
+    };
 
     std::vector<Thing> squares = make_chess_squares();
     std::vector<int>   square_ids;
@@ -136,9 +149,9 @@ struct Chess_Giocamo : Giocamo_With_History<chess::Game_State> {
 
     // Piece Things: a square body that draws a piece image (set in
     // update_table_from_game). A zero corner radius keeps the renderer from
-    // rounding the texture. They are children of the root, listed after the
-    // squares so every piece draws on top of every square — otherwise a sliding
-    // piece would be hidden behind squares drawn later in the tree.
+    // rounding the texture. Each one is parented onto the square it stands
+    // on (see update_table_from_game), which is what draws it on top of that
+    // square and slides it when the square changes.
     Shape piece_shape =
       Shape_Rectangle{{(float)CHESS_CELL, (float)CHESS_CELL}, 0.0f};
     for (int i = 0; i < PIECE_THING_COUNT; ++i) {
@@ -181,10 +194,13 @@ struct Chess_Giocamo : Giocamo_With_History<chess::Game_State> {
     auto root = create_table_root(
       tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT, "tabletop/data/wood.png"
     );
-    // update_table_from_game fills in the rest: the two rows and the pieces
-    // still on the board.
+    // Pieces are never root children — each one is a child of the square (or
+    // taken-row) Thing it sits in — so root's own children never change
+    // after this.
     root._children = square_ids;
-    table.root     = add_thing(table, std::move(root));
+    root._children.push_back(TAKEN_ROW_THING[0]);
+    root._children.push_back(TAKEN_ROW_THING[1]);
+    table.root = add_thing(table, std::move(root));
 
     for (int square = 0; square < 64; ++square) thing_for_square[square] = -1;
     for (int i = 0; i < PIECE_THING_COUNT; ++i) {
@@ -192,45 +208,29 @@ struct Chess_Giocamo : Giocamo_With_History<chess::Game_State> {
       value_of_thing[i]  = 0;
     }
 
-    // Per-frame overlay: cancel any table-top drag (chess is click-only) and
-    // pin the squares, highlight the picked piece's legal destinations, then the
-    // HUD. Pieces are Things now, so they're drawn and animated by the renderer
-    // itself.
+    // Per-frame overlay: just the HUD. Picking up a piece, highlighting its
+    // legal destinations, and dropping it are handled by Chess_Agent_UI's
+    // gesture_map, through process_gestures.
     table.draw_callbacks[-1] = [this](const Table_State&, const Input&, bool) {
-      chess::Game_State& state = this->chess_game();
-      table.drag_state         = Drag_State();
-      for (int square = 0; square < 64; ++square) {
-        table.world_transforms_animated[square] =
-          table.world_transforms[square];
-      }
-
-      const int selected = this->chess_agent_ui().selected_square;
-      if (selected >= 0) {
-        const float half = (float)CHESS_CELL / 2.0f;
-        float       sx   = table.world_transforms[selected].x;
-        float       sy   = table.world_transforms[selected].y;
-        DrawRectangleLinesEx(
-          Rectangle{sx - half, sy - half, (float)CHESS_CELL, (float)CHESS_CELL},
-          4.0f,
-          Color{60, 180, 90, 255}
-        );
-        for (const chess::Move& move : chess::legal_moves(state)) {
-          if (move.from != selected) continue;
-          float dx = table.world_transforms[move.to].x;
-          float dy = table.world_transforms[move.to].y;
-          DrawCircleV(Vector2{dx, dy}, 14.0f, Color{60, 180, 90, 160});
-        }
-      }
-
-      draw_chess_hud(state);
+      draw_chess_hud(this->chess_game());
     };
   }
 
   // Reconcile the piece Things with the board: the moving piece keeps its Thing
-  // (matched by value) and is repositioned onto the destination square, which is
-  // what makes the renderer slide it there.
+  // (matched by value) and is re-parented onto the destination square (a
+  // capacity-1 container), which is what makes the renderer slide it there.
   void update_table_from_game() override {
     chess::Game_State& state = this->chess_game();
+
+    // A drag-and-drop onto a capture nests the moving piece under the piece
+    // standing on the destination square for one frame (that is what the
+    // cursor is actually hovering — see is_drop_allowed above), and castling
+    // moves the rook without going through a drag at all, so every piece
+    // starts this rebuild with no children; the loops below are what give a
+    // square (or a taken row) its piece back.
+    for (int i = 0; i < PIECE_THING_COUNT; ++i) {
+      table.things[PIECE_THING_BASE + i]._children.clear();
+    }
 
     // Release every Thing whose square no longer holds its piece; remember them
     // as free so the squares that still need a piece can reuse them.
@@ -297,22 +297,30 @@ struct Chess_Giocamo : Giocamo_With_History<chess::Game_State> {
       thing_for_square[square] = chosen;
       Thing& piece             = table.things[PIECE_THING_BASE + chosen];
       piece.image_path         = piece_image_path(value);
-      // Setting the target square moves the Thing; the renderer slides it from
-      // wherever it was (the source square) to here.
-      piece.transform = square_transform(square);
+      // A square holds at most one piece, so its child sits centered on it
+      // (local origin) — reset here because a piece coming back from a taken
+      // row still carries that row's spread-out local transform.
+      piece.transform = Transform2D{};
+    }
+
+    // Every square's child is whichever piece Thing (if any) update_table
+    // just matched to it — the single source of truth for what is on the
+    // board, replacing anything left over from a drag or a castle.
+    for (int square = 0; square < 64; ++square) {
+      int pool_index = thing_for_square[square];
+      table.things[square]._children =
+        pool_index < 0 ? std::vector<int>{}
+                       : std::vector<int>{PIECE_THING_BASE + pool_index};
     }
 
     // A Thing that holds a piece but sits on no square was taken. It keeps its
     // image and goes to the row for its colour; the renderer slides it there
     // from the square it was taken on.
-    auto on_board = std::vector<int>();
-    auto taken    = std::vector<std::vector<int>>(2);
+    auto taken = std::vector<std::vector<int>>(2);
     for (int i = 0; i < PIECE_THING_COUNT; ++i) {
       int value = value_of_thing[i];
       if (value == 0) continue;  // Never held a piece.
-      if (square_of_thing[i] >= 0) {
-        on_board.push_back(PIECE_THING_BASE + i);
-      } else {
+      if (square_of_thing[i] < 0) {
         taken[chess::piece_color(value)].push_back(PIECE_THING_BASE + i);
       }
     }
@@ -331,19 +339,11 @@ struct Chess_Giocamo : Giocamo_With_History<chess::Game_State> {
       table.things[TAKEN_ROW_THING[color]]._children = taken[color];
       update_children_positions(TAKEN_ROW_THING[color], table, false);
     }
-
-    // The squares, then the two rows, then the pieces still on the board, so a
-    // piece always draws on top of the square it stands on.
-    std::vector<int>& root_children = table.things[table.root]._children;
-    root_children.clear();
-    for (int square = 0; square < 64; ++square) root_children.push_back(square);
-    root_children.push_back(TAKEN_ROW_THING[0]);
-    root_children.push_back(TAKEN_ROW_THING[1]);
-    for (int thing : on_board) root_children.push_back(thing);
   }
 
-  // Nothing is draggable, so the table never holds an arrangement the game
-  // does not already have.
+  // update_table_from_game rebuilds the whole tree from the board after every
+  // real move and snaps a rejected drag back on its own, so the table never
+  // holds an arrangement the game doesn't already have.
   void update_game_from_table() override {}
 
   // Watch mode: Black is the MCTS bot. Otherwise the human plays against the

@@ -2,55 +2,35 @@
 
 #include <chess/gameplay.h>
 
+#include "ui.h"
+
 int Chess_Agent_UI::choose_action(Game& game, const Choice&) {
-  auto&            state = static_cast<chess::Game_State&>(game);
-  chess::Move_List moves = chess::legal_moves(state);
+  auto& state = static_cast<chess::Game_State&>(game);
 
-  // Which square (thing-id == board index) got left-clicked this frame, if any.
-  int clicked_square = -1;
-  for (int square = 0; square < 64; ++square) {
-    if (thing_pressed(square, table, *input)) {
-      clicked_square = square;
-      break;
-    }
-  }
-  if (clicked_square < 0) return -1;
-
-  // No piece picked yet: select the clicked square if it has a legal move.
-  if (selected_square < 0) {
-    for (const chess::Move& move : moves) {
-      if (move.from == clicked_square) {
-        selected_square = clicked_square;
-        break;
-      }
-    }
-    return -1;
-  }
-
-  // Clicking the selected square again cancels the selection.
-  if (clicked_square == selected_square) {
-    selected_square = -1;
-    return -1;
-  }
-
-  // A legal move from the selected square to the click resolves it. Promotions
-  // auto-queen, so skip the rook/bishop/knight options.
-  for (int i = 0; i < (int)moves.size(); ++i) {
-    if (moves[i].from == selected_square && moves[i].to == clicked_square) {
-      if (moves[i].promotion != 0 && moves[i].promotion != chess::QUEEN) continue;
-      selected_square = -1;
-      return i;
+  // Built once per turn: one Gesture_Drag_And_Drop per legal move, keyed by
+  // the piece's Thing. A piece with several legal destinations gets several
+  // gestures. The drop's container is the destination square, or the piece
+  // standing there when the square is occupied (dragging over an occupied
+  // square hovers that piece, not the square underneath it). Promotions
+  // auto-queen, so the rook/bishop/knight options are skipped — otherwise
+  // they would collide with the queen option on the same square.
+  if (this->gesture_map.empty()) {
+    chess::Move_List moves = chess::legal_moves(state);
+    for (int i = 0; i < moves.size(); ++i) {
+      const chess::Move& move = moves[i];
+      if (move.promotion != 0 && move.promotion != chess::QUEEN) continue;
+      int piece_id   = chess_piece_thing_on_square(move.from);
+      int dest_thing = chess_piece_thing_on_square(move.to);
+      int container   = dest_thing >= 0 ? dest_thing : move.to;
+      this->gesture_map[piece_id].push_back(
+        Gesture_Drag_And_Drop{container, i}
+      );
     }
   }
 
-  // Clicking another of the player's own movable pieces reselects it; anything
-  // else clears the selection.
-  for (const chess::Move& move : moves) {
-    if (move.from == clicked_square) {
-      selected_square = clicked_square;
-      return -1;
-    }
-  }
-  selected_square = -1;
-  return -1;
+  auto drag      = table.drag_state;
+  auto drop      = table.poll_dropped_thing();
+  int  action_id = this->process_gestures(drag, drop);
+  if (action_id != -1) this->gesture_map.clear();
+  return action_id;
 }
