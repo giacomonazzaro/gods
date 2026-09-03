@@ -93,7 +93,8 @@ int Gods_Agent_UI::choose_action(Game& state, const Choice& choice) {
   // Handle dropped card (drag-and-drop to play from hand).
   auto dropped = table.poll_dropped_thing();
   if (dropped) {
-    auto [orig, target, dropped_card_id] = *dropped;
+    auto [orig, target, dropped_card_id, allowed] = *dropped;
+    (void)allowed;
     if (choice.description == "main" && orig == hand_stack &&
         target == play_stack) {
       // Find the Card_Id in the Choose_Card targets whose card_index matches.

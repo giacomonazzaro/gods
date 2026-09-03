@@ -40,7 +40,8 @@ int Tressette_Agent_UI::choose_action(Game& game, const Choice& choice) {
   auto dropped = table.poll_dropped_thing();
   if (!dropped) return -1;
 
-  auto [src, dst, dropped_id] = *dropped;
+  auto [src, dst, dropped_id, allowed] = *dropped;
+  (void)allowed;
   if (src == hand_id && dst == table_id && legal_set.count(dropped_id)) {
     ui_state.highlighted_things.clear();
     for (int i = 0; i < (int)cc->targets.size(); ++i) {
