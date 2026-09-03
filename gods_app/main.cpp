@@ -115,11 +115,9 @@ void init_table_layout(
   Table_State& table_state,
   Game_State&  gods_state,
   int          bottom_player,
-  int          window_width,
-  int          window_height
+  Vector2      window_size
 ) {
-  table_state.width  = window_width;
-  table_state.height = window_height;
+  table_state.size = window_size;
 
   // Cards aligned with all_cards so card.id is the shared key.
   for (const auto& gc : gods_state.all_cards) {
@@ -131,8 +129,7 @@ void init_table_layout(
   // Stack things: assign ids by append order. Track the insertion order so
   // root.children() matches the original stack ordering. make_gods_stacks
   // returns stacks in root-local coords (root is centered on the screen).
-  std::vector<Thing> stacks =
-    make_gods_stacks(bottom_player, window_width, window_height);
+  std::vector<Thing> stacks = make_gods_stacks(bottom_player, window_size);
   std::vector<int> stack_ids_in_order;
   for (Thing& s : stacks) {
     stack_ids_in_order.push_back(add_thing(table_state, std::move(s)));
@@ -141,12 +138,12 @@ void init_table_layout(
   // Root: sits at the end of `things`, owns all stacks as direct children.
   // Centered on the screen so the root rect spans (0,0)-(W,H) in world.
   Thing root;
-  root.name  = "root";
-  root.shape = rectangle_shape({(float)window_width, (float)window_height});
-  root.transform.x = (float)window_width / 2.0f;
-  root.transform.y = (float)window_height / 2.0f;
-  root._children   = stack_ids_in_order;
-  root.capacity    = 0;
+  root.name         = "root";
+  root.shape        = rectangle_shape(window_size);
+  root.transform.x  = window_size.x / 2.0f;
+  root.transform.y  = window_size.y / 2.0f;
+  root._children    = stack_ids_in_order;
+  root.capacity     = 0;
   // Transparent so the shader background drawn behind the table shows through.
   root.color = {0, 0, 0, 0};
   table_state.root = add_thing(table_state, std::move(root));
@@ -199,10 +196,10 @@ static void draw_hud(
   int          bottom_player,
   const Input& input
 ) {
-  int       H      = table_state->height;
+  int       H      = (int)table_state->size.y;
   int       h      = tt::CARD_HEIGHT;
   int       margin = 20;
-  Rectangle window = {0.0f, 0.0f, (float)table_state->width, (float)H};
+  Rectangle window = {0.0f, 0.0f, table_state->size.x, (float)H};
   int       bottom_wonders_y =
     (int)place_inside(window, 0, h, "left", "bottom", 2 * margin + h).y;
   int opponent_shift = (int)(h * 0.65f);
@@ -237,9 +234,9 @@ static void draw_hud(
     Rectangle panel =
       place_next(card_rect, panel_w, btn_h + 16, "center", "bottom", 8);
     panel.x =
-      std::max(0.0f, std::min(panel.x, (float)(table_state->width - panel_w)));
+      std::max(0.0f, std::min(panel.x, table_state->size.x - (float)panel_w));
     panel.y = std::max(
-      0.0f, std::min(panel.y, (float)(table_state->height - (int)panel.height))
+      0.0f, std::min(panel.y, table_state->size.y - panel.height)
     );
     DrawRectangleRounded(
       Rectangle{panel.x, panel.y, panel.width, panel.height},
@@ -263,7 +260,7 @@ static void draw_hud(
   // Re-place the shared deck so it stays anchored. The stack is a root-child
   // so the placement is computed in root-local coords (root is centered, so
   // the window spans (-W/2, -H/2) to (W/2, H/2) in that space).
-  float     W           = (float)table_state->width;
+  float     W           = table_state->size.x;
   float     Hf          = (float)H;
   Rectangle root_window = {-W / 2.0f, -Hf / 2.0f, W, Hf};
   for (int child_id : table_state->things[table_state->root].children()) {
@@ -396,8 +393,7 @@ static void handle_discard_expand(
       // Restore original rect from a fresh layout. Match by name since
       // ordinal positions in make_gods_stacks aren't aligned with
       // table_state thing ids.
-      auto fresh =
-        make_gods_stacks(player_index, table_state.width, table_state.height);
+      auto fresh = make_gods_stacks(player_index, table_state.size);
       for (const Thing& f : fresh) {
         if (f.name == s.name) {
           s.transform = f.transform;
@@ -432,13 +428,7 @@ struct Gods_Giocamo : Giocamo_With_History<Game_State> {
     Gods_Agent_UI& player = this->gods_agent_ui();
     player.bottom_player  = bottom_player;
 
-    init_table_layout(
-      table,
-      state,
-      bottom_player,
-      (int)table.window_size().x,
-      (int)table.window_size().y
-    );
+    init_table_layout(table, state, bottom_player, table.size);
     init_card_draw_callbacks(table, state, player.ui_state);
 
     // Per-frame overlay: gods-specific inputs (debug save, discard expand)

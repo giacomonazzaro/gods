@@ -109,13 +109,12 @@ Rectangle place_on_screen(
   return place_inside(screen, width, height, x, y, padding);
 }
 
-UI_State::UI_State(int width, int height)
-    : window_width(width), window_height(height) {}
+UI_State::UI_State(Vector2 window_size) : window_size(window_size) {}
 
 Rectangle UI_State::place(
   int width, int height, const std::string& x, const std::string& y, int padding
 ) const {
-  Rectangle window = {0.0f, 0.0f, (float)window_width, (float)window_height};
+  Rectangle window = {0.0f, 0.0f, window_size.x, window_size.y};
   return place_inside(window, width, height, x, y, padding);
 }
 

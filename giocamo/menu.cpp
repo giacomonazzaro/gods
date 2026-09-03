@@ -93,18 +93,15 @@ inline bool menu_button(
 }
 
 Menu_Result run_menu(
-  const std::string& title,
-  int                window_width,
-  int                window_height,
-  Input_Feed&        inputs
+  const std::string& title, Vector2 window_size, Input_Feed& inputs
 ) {
-  int W = window_width;
-  int H = window_height;
+  int W = (int)window_size.x;
+  int H = (int)window_size.y;
 
   // The menu draws into the window every other screen draws into, and does not
   // own it: it is opened once here if nothing has yet, and closed by play_game
   // when everything is done with it.
-  open_table_window(W, H, title);
+  open_table_window(window_size, title);
 
   Menu_State state;
 

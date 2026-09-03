@@ -36,9 +36,7 @@ static const std::string IMAGES_DIR = "mindbug/card-images";
 
 std::string get_image_path(const std::string& image_file);
 
-std::vector<Thing> make_mindbug_zones(
-  int bottom_player, int window_width, int window_height
-);
+std::vector<Thing> make_mindbug_zones(int bottom_player, Vector2 window_size);
 
 // Where the debug snapshot of the game is written and read.
 static const std::string SNAPSHOT_PATH = "data/debug_game_state.json";
@@ -92,17 +90,13 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
     }
 
     auto zone_ids = std::vector<int>();
-    auto zones    = make_mindbug_zones(
-      bottom_player, (int)table.window_size().x, (int)table.window_size().y
-    );
+    auto zones    = make_mindbug_zones(bottom_player, table.size);
     for (Thing& zone : zones) {
       zone_ids.push_back(add_thing(table, std::move(zone)));
     }
 
     // Empty texture path: the table is drawn with root.color.
-    auto root      = create_table_root(
-      (int)table.window_size().x, (int)table.window_size().y, ""
-    );
+    auto root      = create_table_root(table.size, "");
     root._children = zone_ids;
     root.color     = {0, 0, 0, 0};
     table.root     = add_thing(table, std::move(root));
@@ -318,9 +312,7 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
   }
 };
 
-std::vector<Thing> make_mindbug_zones(
-  int bottom_player, int window_width, int window_height
-) {
+std::vector<Thing> make_mindbug_zones(int bottom_player, Vector2 window_size) {
   const int card_width  = tt::CARD_WIDTH;
   const int card_height = tt::CARD_HEIGHT;
   const int margin      = 24;
@@ -333,10 +325,7 @@ std::vector<Thing> make_mindbug_zones(
   // The root is centered on the screen, so the window spans
   // (-width/2, -height/2) to (width/2, height/2) in root-local coordinates.
   Rectangle window = {
-    -(float)window_width / 2.0f,
-    -(float)window_height / 2.0f,
-    (float)window_width,
-    (float)window_height
+    -window_size.x / 2.0f, -window_size.y / 2.0f, window_size.x, window_size.y
   };
 
   // Bottom player: hand along the bottom edge, creatures in the half above it,

@@ -262,9 +262,7 @@ inline Thing make_container_thing(
 // Build a full-window root thing centered on a width×height screen, textured
 // with the given table surface and with square corners so it fills the screen.
 // The caller assigns its id and children, then adds it to the table.
-Thing create_table_root(
-  int width, int height, const std::string& texture_path = ""
-);
+Thing create_table_root(Vector2 size, const std::string& texture_path = "");
 
 // Path of thing IDs from root to the thing.
 using Thing_Location = std::vector<int>;
@@ -337,10 +335,7 @@ struct std::hash<Drop_Gesture> {
 
 // Full table state passed to every render and input function.
 struct Table_State : Table_Layout {
-  int width  = tt::WINDOW_WIDTH;
-  int height = tt::WINDOW_HEIGHT;
-
-  Vector2 window_size() const { return Vector2{(float)width, (float)height}; }
+  Vector2 size = {tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT};
 
   Drag_State               drag_state;
   std::vector<Transform2D> world_transforms_animated;
@@ -376,10 +371,9 @@ struct Table_State : Table_Layout {
   }
 
   Table_State() {};
-  Table_State(int width, int height, const Table_Layout& layout)
+  Table_State(Vector2 size, const Table_Layout& layout)
       : Table_Layout(layout)
-      , width(width)
-      , height(height)
+      , size(size)
       , is_drop_allowed([](int, int, int) { return true; }) {}
 };
 

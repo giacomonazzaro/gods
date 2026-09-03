@@ -65,9 +65,7 @@ struct Dot_Giocamo : Giocamo_With_History<dot::Game_State> {
     }
 
     // Empty texture path: the table is drawn with root.color (a dark surface).
-    auto root      = create_table_root(
-      (int)table.window_size().x, (int)table.window_size().y, ""
-    );
+    auto root      = create_table_root(table.size, "");
     root._children = stack_ids;
     root.color     = {15, 15, 15, 255};
     table.root     = add_thing(table, std::move(root));

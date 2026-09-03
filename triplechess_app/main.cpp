@@ -181,11 +181,7 @@ struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
       )
     );
 
-    auto root = create_table_root(
-      (int)table.window_size().x,
-      (int)table.window_size().y,
-      "tabletop/data/wood.png"
-    );
+    auto root = create_table_root(table.size, "tabletop/data/wood.png");
     // Pieces are never root children — each one is a child of the square (or
     // captured-row) Thing it sits in — so root's own children never change
     // after this.

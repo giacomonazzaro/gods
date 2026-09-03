@@ -52,8 +52,8 @@ static const char* rank_label(int rank) {
 std::vector<Thing> make_tressette_stacks(
   const Table_State& table, int bottom_player, bool show_opponent_hand
 ) {
-  const int W           = (int)table.window_size().x;
-  const int H           = (int)table.window_size().y;
+  const int W           = (int)table.size.x;
+  const int H           = (int)table.size.y;
   const int w           = tt::CARD_WIDTH;
   const int h           = tt::CARD_HEIGHT;
   const int margin      = 30;

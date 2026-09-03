@@ -17,11 +17,9 @@ static const std::string IMAGES_DIR = "/gods/card-images";
 static const std::string IMAGES_DIR = "gods/card-images";
 #endif
 
-std::vector<Thing> make_gods_stacks(
-  int bottom_player, int window_width, int window_height
-) {
-  int W      = window_width;
-  int H      = window_height;
+std::vector<Thing> make_gods_stacks(int bottom_player, Vector2 window_size) {
+  int W      = (int)window_size.x;
+  int H      = (int)window_size.y;
   int w      = tt::CARD_WIDTH;
   int h      = tt::CARD_HEIGHT;
   int margin = 20;
@@ -153,7 +151,7 @@ void draw_player_hud(
 ) {
   (void)player_id;
   (void)deck_count;
-  float window_width = table.window_size().x;
+  float window_width = table.size.x;
 
   if (is_current) {
     DrawRectangleRounded(

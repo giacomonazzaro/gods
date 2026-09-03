@@ -398,15 +398,13 @@ Rectangle world_rect(int thing_id, const Table_State& state) {
   return Rectangle{px - size.x / 2.0f, py - size.y / 2.0f, size.x, size.y};
 }
 
-Thing create_table_root(
-  int width, int height, const std::string& texture_path
-) {
+Thing create_table_root(Vector2 size, const std::string& texture_path) {
   auto root = Thing();
   root.name = "root";
   // Centered on the screen, so its rect spans (0,0)-(width,height) in world.
-  root.shape       = rectangle_shape({(float)width, (float)height});
-  root.transform.x = (float)width / 2.0f;
-  root.transform.y = (float)height / 2.0f;
+  root.shape       = rectangle_shape(size);
+  root.transform.x = size.x / 2.0f;
+  root.transform.y = size.y / 2.0f;
   // Table surface filling the whole window (square, no rounded corners).
   std::get<Shape_Rectangle>(root.shape).corner_radius = 0.0f;
   root.image_path                                     = texture_path;

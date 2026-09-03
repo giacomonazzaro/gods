@@ -37,9 +37,8 @@ static int draw_capture_picker(
   const float panel_width       = 360.0f;
   const float panel_height      = padding * 2.0f +
                              row_height * (float)number_of_options + 36.0f;
-  const float panel_x = (agent_ui.table.window_size().x - panel_width) * 0.5f;
-  const float panel_y =
-    (agent_ui.table.window_size().y - panel_height) * 0.5f - 80.0f;
+  const float panel_x = (agent_ui.table.size.x - panel_width) * 0.5f;
+  const float panel_y = (agent_ui.table.size.y - panel_height) * 0.5f - 80.0f;
 
   DrawRectangleRounded(
     Rectangle{panel_x, panel_y, panel_width, panel_height},

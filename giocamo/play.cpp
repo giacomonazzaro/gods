@@ -35,8 +35,7 @@ static void send_game_state(const Online& online, const Giocamo& giocamo) {
 
 Menu_Result run_menu(
   const std::string&               title,
-  int                              window_width,
-  int                              window_height,
+  Vector2                          window_size,
   Input_Feed&                      inputs,
   std::optional<Online_Connection> local_connection,
   bool                             skip_menu,
@@ -56,7 +55,7 @@ Menu_Result run_menu(
     result.seed = cli_seed;  // Solo play; honor --seed=N from the command line.
     return result;
   }
-  auto result = run_menu(title, window_width, window_height, inputs);
+  auto result = run_menu(title, window_size, inputs);
   if (!result.is_online()) result.seed = cli_seed;
   return result;
 }
@@ -92,8 +91,8 @@ static void draw_game_over_screen(const Giocamo& giocamo) {
   std::string result_text =
     tied > 1 ? "It's a tie." : "Player " + std::to_string(best + 1) + " wins!";
 
-  const int   W     = (int)giocamo.table.window_size().x;
-  const int   H     = (int)giocamo.table.window_size().y;
+  const int   W     = (int)giocamo.table.size.x;
+  const int   H     = (int)giocamo.table.size.y;
   const char* title = "GAME OVER";
   std::string score_line;
   for (int player = 0; player < (int)scores.size(); ++player) {
@@ -237,9 +236,7 @@ static void run_game(
     }
 
     // Playground toggle button (top-right).
-    Rectangle screen_rect = {
-      0.0f, 0.0f, table.window_size().x, table.window_size().y
-    };
+    Rectangle screen_rect = {0.0f, 0.0f, table.size.x, table.size.y};
     Rectangle button_rect =
       place_inside(screen_rect, 160, 32, "right", "top", 20);
     std::string label = playground ? "Playground: ON" : "Playground: OFF";
@@ -333,14 +330,7 @@ static void run_game(
     return false;
   };
 
-  run_tabletop(
-    table,
-    update,
-    input_feed,
-    (int)table.window_size().x,
-    (int)table.window_size().y,
-    window_title
-  );
+  run_tabletop(table, update, input_feed, table.size, window_title);
 
   // The menu, the game and the game-over screen all drew into one window;
   // this is the end of all of them.
@@ -353,8 +343,7 @@ void play_game(
   auto input_feed  = Input_Feed(options.input_mode, options.input_file_path);
   auto menu_result = run_menu(
     window_title,
-    (int)giocamo.table.window_size().x,
-    (int)giocamo.table.window_size().y,
+    giocamo.table.size,
     input_feed,
     options.local_connection,
     options.skip_menu,

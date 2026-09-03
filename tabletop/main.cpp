@@ -18,17 +18,17 @@ static Table_State make_demo_table(const std::string& filename) {
   auto table = Table_State();
   if (!filename.empty()) {
     auto layout = load_from_json<Table_Layout>(filename);
-    table       = Table_State(0, 0, layout);
+    table       = Table_State(Vector2{0, 0}, layout);
   } else {
     // Root's rectangle expressed in its own local space: origin sits at the
     // root's center, so the rect spans -W/2..W/2 horizontally and -H/2..H/2
     // vertically. This is the parent rect passed to place_inside() when
     // anchoring containers against the window edges.
     Rectangle root_rect = {
-      -table.window_size().x / 2.0f,
-      -table.window_size().y / 2.0f,
-      table.window_size().x,
-      table.window_size().y,
+      -table.size.x / 2.0f,
+      -table.size.y / 2.0f,
+      table.size.x,
+      table.size.y,
     };
 
     const int card_slot_width  = tt::CARD_WIDTH + 20;
@@ -127,10 +127,8 @@ static Table_State make_demo_table(const std::string& filename) {
     {
       Thing root;
       root.name = "root";
-      root.shape     = rectangle_shape(table.window_size());
-      root.transform = {
-        table.window_size().x / 2.0f, table.window_size().y / 2.0f, 0.0f
-      };
+      root.shape     = rectangle_shape(table.size);
+      root.transform = {table.size.x / 2.0f, table.size.y / 2.0f, 0.0f};
       root._children = {deck_id, hand_id, discard_id};
       // Wooden table surface filling the whole window (no rounded corners).
       std::get<Shape_Rectangle>(root.shape).corner_radius = 0.0f;
@@ -176,8 +174,7 @@ int main(int argc, char** argv) {
       }
       return false;
     },
-    (int)table.window_size().x,
-    (int)table.window_size().y,
+    table.size,
     "Tabletop Demo"
   );
 }

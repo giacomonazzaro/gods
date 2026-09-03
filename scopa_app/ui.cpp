@@ -53,8 +53,8 @@ static const char* rank_label(int rank) {
 std::vector<Thing> make_scopa_stacks(
   const Table_State& table, int bottom_player, bool show_opponent_hand
 ) {
-  const int window_width  = (int)table.window_size().x;
-  const int window_height = (int)table.window_size().y;
+  const int window_width  = (int)table.size.x;
+  const int window_height = (int)table.size.y;
   const int card_width    = tt::CARD_WIDTH;
   const int card_height   = tt::CARD_HEIGHT;
   const int margin        = 30;

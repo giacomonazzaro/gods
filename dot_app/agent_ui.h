@@ -15,8 +15,7 @@ struct Dot_Agent_UI : Agent_UI {
   // Which seat the local player controls. Set from Giocamo::bottom_player.
   int player_index = 0;
   // Which cards get a "legal move" border. The card draw callbacks read it.
-  UI_State ui_state =
-    UI_State((int)table.window_size().x, (int)table.window_size().y);
+  UI_State ui_state = UI_State(table.size);
 
   void message(const std::string&) override {}
   int  choose_action(Game& game, const Choice& choice) override;

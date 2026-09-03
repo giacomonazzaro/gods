@@ -59,14 +59,13 @@ struct UI_State {
   std::unordered_map<int, Button> buttons;
   // Highlight overlay keyed by choice index → thing id.
   std::unordered_map<int, int> highlighted_things;
-  int                          window_width;
-  int                          window_height;
+  Vector2                      window_size;
   const Input*                 input = nullptr;
   // Playground pauses the game loop so the table can be rearranged freely.
   // play_game owns the toggle; game code reads it to gate playground-only UI.
   bool playground = false;
 
-  UI_State(int width, int height);
+  UI_State(Vector2 window_size);
   Rectangle place(
     int                width,
     int                height,

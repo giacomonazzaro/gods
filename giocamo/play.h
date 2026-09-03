@@ -30,8 +30,7 @@ void update_zoomed_thing(Table_State& table_state, const Input& input);
 // play; online uses the matchmaker's seed instead.
 Menu_Result run_menu(
   const std::string&               title,
-  int                              window_width,
-  int                              window_height,
+  Vector2                          window_size,
   Input_Feed&                      inputs,
   std::optional<Online_Connection> local_connection,
   bool                             skip_menu,

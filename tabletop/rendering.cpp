@@ -550,8 +550,8 @@ void draw_zoomed_thing(
   const Table_State& state, const Input& input, int thing_id, bool face_up
 ) {
   // Drawn inside the screen-fit transform, so work in logical canvas coords.
-  int screen_w = (int)state.window_size().x;
-  int screen_h = (int)state.window_size().y;
+  int screen_w = (int)state.size.x;
+  int screen_h = (int)state.size.y;
 
   // Dim background.
   DrawRectangle(0, 0, screen_w, screen_h, Color{0, 0, 0, 160});
@@ -721,7 +721,7 @@ static EM_BOOL fit_canvas_to_tab(int, const EmscriptenUiEvent*, void*) {
 }
 #endif
 
-void open_table_window(int width, int height, const std::string& title) {
+void open_table_window(Vector2 size, const std::string& title) {
   if (IsWindowReady()) return;
 #ifdef __EMSCRIPTEN__
   // Asking WebGL for multisampling gets a black canvas instead of a context.
@@ -738,7 +738,7 @@ void open_table_window(int width, int height, const std::string& title) {
     FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE
   );
 #endif
-  InitWindow(width, height, title.c_str());
+  InitWindow((int)size.x, (int)size.y, title.c_str());
 #ifdef __EMSCRIPTEN__
   // `width` and `height` above only hold until this runs.
   emscripten_set_resize_callback(
@@ -761,14 +761,12 @@ void run_tabletop(
   Table_State&                                    table,
   std::function<bool(Table_State&, const Input&)> update,
   Input_Feed&                                     input_feed,
-  int                                             window_width,
-  int                                             window_height,
+  Vector2                                         window_size,
   const std::string&                              window_name
 ) {
   bool owns_window = !IsWindowReady();
-  open_table_window(window_width, window_height, window_name);
-  table.width  = window_width;
-  table.height = window_height;
+  open_table_window(window_size, window_name);
+  table.size = window_size;
 
   while (!WindowShouldClose()) {
     auto input = next_input(input_feed);
@@ -804,12 +802,9 @@ void run_tabletop(
 void run_tabletop(
   Table_State&                                    table,
   std::function<bool(Table_State&, const Input&)> update,
-  int                                             window_width,
-  int                                             window_height,
+  Vector2                                         window_size,
   const std::string&                              window_name
 ) {
   auto live_feed = Input_Feed{Input_Mode::Live, ""};
-  run_tabletop(
-    table, update, live_feed, window_width, window_height, window_name
-  );
+  run_tabletop(table, update, live_feed, window_size, window_name);
 }

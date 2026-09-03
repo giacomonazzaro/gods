@@ -101,11 +101,7 @@ struct Tressette_Giocamo : Giocamo_With_History<tressette::Game_State> {
     }
 
     // Root: a wooden table surface owning all stacks as direct children.
-    auto root = create_table_root(
-      (int)table.window_size().x,
-      (int)table.window_size().y,
-      "tabletop/data/wood.png"
-    );
+    auto root = create_table_root(table.size, "tabletop/data/wood.png");
     root._children = stack_ids;
     table.root     = add_thing(table, std::move(root));
 
@@ -115,9 +111,8 @@ struct Tressette_Giocamo : Giocamo_With_History<tressette::Game_State> {
       for (int i = 0; i < 2; ++i) {
         int  score      = tressette::compute_player_score(state, i);
         bool is_current = (i == state.current_player);
-        int  hud_y = (i == this->bottom_player)
-                       ? (int)(table.window_size().y - 56)
-                       : 16;
+        int  hud_y =
+          (i == this->bottom_player) ? (int)(table.size.y - 56) : 16;
         draw_tressette_player_hud(i, score, is_current, hud_y);
       }
     };

@@ -211,9 +211,7 @@ struct Air_Land_Sea_Giocamo : Giocamo_With_History<Game_State> {
     }
 
     // Empty texture path: the table is drawn with root.color.
-    auto root      = create_table_root(
-      (int)table.window_size().x, (int)table.window_size().y, ""
-    );
+    auto root      = create_table_root(table.size, "");
     root._children = zone_ids;
     root.color     = {0, 0, 0, 0};
     table.root     = add_thing(table, std::move(root));

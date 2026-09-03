@@ -11,9 +11,7 @@
 // root-local coords (origin at the screen center, so the stack rects sit
 // in a window of (-W/2, -H/2)-(W/2, H/2)). Caller fills in ids and
 // children before appending to state.things.
-std::vector<Thing> make_gods_stacks(
-  int bottom_player, int window_width, int window_height
-);
+std::vector<Thing> make_gods_stacks(int bottom_player, Vector2 window_size);
 
 // Full path of a card's art, given the file name cards.json records for it.
 std::string get_image_path(const std::string& image_file);
@@ -37,5 +35,5 @@ void draw_player_hud(
 struct Gods_UI : UI_State {
   int power_edit_card_id = -1;  // Card whose power is being edited.
 
-  Gods_UI(int width, int height) : UI_State(width, height) {}
+  Gods_UI(Vector2 size) : UI_State(size) {}
 };

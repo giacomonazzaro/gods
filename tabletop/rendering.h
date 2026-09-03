@@ -51,7 +51,7 @@ void end_screen_fit();
 // Opens the one window every screen draws into, with the flags the layout
 // needs (and, on the web, the canvas sizing). Does nothing when it is already
 // open, so whichever screen runs first can ask for it.
-void open_table_window(int width, int height, const std::string& title);
+void open_table_window(Vector2 size, const std::string& title);
 
 // Closes it, if it is open. The menu, the game and the game-over screen all
 // draw into the same window and none of them owns it — whoever opened it
@@ -62,8 +62,7 @@ void run_tabletop(
   Table_State&                                    table,
   std::function<bool(Table_State&, const Input&)> update,
   Input_Feed&                                     input_feed,
-  int                                             window_width,
-  int                                             window_height,
+  Vector2                                         window_size,
   const std::string&                              window_name
 );
 
@@ -72,7 +71,6 @@ void run_tabletop(
 void run_tabletop(
   Table_State&                                    table,
   std::function<bool(Table_State&, const Input&)> update,
-  int                                             window_width,
-  int                                             window_height,
+  Vector2                                         window_size,
   const std::string&                              window_name
 );

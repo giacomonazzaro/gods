@@ -163,7 +163,7 @@ int Mindbug_Agent_UI::choose_action_internal(
 
   render_text(
     instruction(game, choice),
-    table.window_size().x / 2.0f - 300.0f,
+    table.size.x / 2.0f - 300.0f,
     16.0f,
     22,
     Color{255, 235, 150, 255}

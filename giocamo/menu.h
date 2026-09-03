@@ -25,8 +25,5 @@ struct Menu_Result {
 // it. `recorder` drives the menu's per-frame input — Live captures from raylib,
 // Record also stores frames, Playback replays them.
 Menu_Result run_menu(
-  const std::string& title,
-  int                window_width,
-  int                window_height,
-  Input_Feed&        recorder
+  const std::string& title, Vector2 window_size, Input_Feed& recorder
 );
