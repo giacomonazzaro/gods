@@ -139,6 +139,7 @@ void init_table_layout(
   // Centered on the screen so the root rect spans (0,0)-(W,H) in world.
   Thing root;
   root.name         = "root";
+  root.locked       = true;  // The background never drags.
   root.shape        = rectangle_shape(window_size);
   root.transform.x  = window_size.x / 2.0f;
   root.transform.y  = window_size.y / 2.0f;

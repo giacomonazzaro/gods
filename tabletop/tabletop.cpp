@@ -400,7 +400,8 @@ Rectangle world_rect(int thing_id, const Table_State& state) {
 
 Thing create_table_root(Vector2 size, const std::string& texture_path) {
   auto root = Thing();
-  root.name = "root";
+  root.name   = "root";
+  root.locked = true;  // The background never drags.
   // Centered on the screen, so its rect spans (0,0)-(width,height) in world.
   root.shape       = rectangle_shape(size);
   root.transform.x = size.x / 2.0f;

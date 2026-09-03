@@ -588,9 +588,6 @@ void draw_table(Table_State& state, const Input& input) {
   for (size_t i = 0; i < target_transforms.size(); i++) {
     target_transforms[i] = state.things[i].transform;
   }
-  if (state.world_transforms.size() != state.things.size()) {
-    state.world_transforms.resize(state.things.size());
-  }
   update_world_transforms(
     state.root,
     Transform2D{},
@@ -599,9 +596,6 @@ void draw_table(Table_State& state, const Input& input) {
     state.world_transforms
   );
 
-  if (state.world_transforms_animated.size() != state.things.size()) {
-    state.world_transforms_animated = state.world_transforms;
-  }
 #if 0
   state.world_transforms_animated = state.world_transforms;
 #else
@@ -767,6 +761,22 @@ void run_tabletop(
   bool owns_window = !IsWindowReady();
   open_table_window(window_size, window_name);
   table.size = window_size;
+
+  // draw_table computes and syncs these every frame, but it runs after
+  // process_input — so the first frame's input would hit-test against
+  // positions that were never computed. Compute them once here, up front,
+  // and snap the animated copy to them so the initial layout doesn't fly in
+  // from the origin.
+  std::vector<Transform2D> local_transforms(table.things.size());
+  for (size_t i = 0; i < local_transforms.size(); i++) {
+    local_transforms[i] = table.things[i].transform;
+  }
+  table.world_transforms.resize(table.things.size());
+  update_world_transforms(
+    table.root, Transform2D{}, table.things, local_transforms,
+    table.world_transforms
+  );
+  table.world_transforms_animated = table.world_transforms;
 
   while (!WindowShouldClose()) {
     auto input = next_input(input_feed);

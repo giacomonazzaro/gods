@@ -126,7 +126,8 @@ static Table_State make_demo_table(const std::string& filename) {
     const int root_id = 19;
     {
       Thing root;
-      root.name = "root";
+      root.name      = "root";
+      root.locked    = true;  // The background never drags.
       root.shape     = rectangle_shape(table.size);
       root.transform = {table.size.x / 2.0f, table.size.y / 2.0f, 0.0f};
       root._children = {deck_id, hand_id, discard_id};
