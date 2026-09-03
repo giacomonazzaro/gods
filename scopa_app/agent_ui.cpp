@@ -137,9 +137,10 @@ int Scopa_Agent_UI::choose_action(Game& game, const Choice& choice) {
   auto dropped = table.poll_dropped_thing();
   if (!dropped) return -1;
 
-  auto [src, dst, dropped_id, allowed] = *dropped;
-  (void)allowed;
-  if (src != hand_id || dst != table_id) return -1;
+  if (dropped->from_parent != hand_id || dropped->to_parent != table_id) {
+    return -1;
+  }
+  int dropped_id = dropped->thing_id;
 
   // Collect every action that plays the dropped card.
   std::vector<int>              matching_indices;

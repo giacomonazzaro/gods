@@ -93,15 +93,13 @@ int Gods_Agent_UI::choose_action(Game& state, const Choice& choice) {
   // Handle dropped card (drag-and-drop to play from hand).
   auto dropped = table.poll_dropped_thing();
   if (dropped) {
-    auto [orig, target, dropped_card_id, allowed] = *dropped;
-    (void)allowed;
-    if (choice.description == "main" && orig == hand_stack &&
-        target == play_stack) {
+    if (choice.description == "main" && dropped->from_parent == hand_stack &&
+        dropped->to_parent == play_stack) {
       // Find the Card_Id in the Choose_Card targets whose card_index matches.
       if (auto* cc = std::get_if<Choose_Card>(&action_type)) {
         for (int i = 0; i < (int)cc->targets.size(); ++i) {
           Card_Id cid = unpack_card_id(cc->targets[i]);
-          if (!Card_Id::is_null(cid) && cid.card_index == dropped_card_id)
+          if (!Card_Id::is_null(cid) && cid.card_index == dropped->thing_id)
             return i;
         }
       }
