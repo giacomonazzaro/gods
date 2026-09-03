@@ -64,7 +64,8 @@ struct Scopa_Giocamo : Giocamo_With_History<scopa::Game_State> {
 
     // 6 stack Things appended after cards. The opponent's hand is face up only
     // in hot-seat, where one screen is shared.
-    std::vector<Thing> stacks = make_scopa_stacks(bottom_player, hot_seat);
+    std::vector<Thing> stacks =
+      make_scopa_stacks(table, bottom_player, hot_seat);
     std::vector<int>   stack_ids;
     for (Thing& stack : stacks) {
       stack_ids.push_back(add_thing(table, std::move(stack)));
@@ -72,7 +73,9 @@ struct Scopa_Giocamo : Giocamo_With_History<scopa::Game_State> {
 
     // Root: a wooden table surface owning all stacks as direct children.
     auto root = create_table_root(
-      tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT, "tabletop/data/wood.png"
+      (int)table.window_size().x,
+      (int)table.window_size().y,
+      "tabletop/data/wood.png"
     );
     root._children = stack_ids;
     table.root     = add_thing(table, std::move(root));
@@ -82,7 +85,9 @@ struct Scopa_Giocamo : Giocamo_With_History<scopa::Game_State> {
       const scopa::Game_State& state = this->scopa_game();
       for (int i = 0; i < 2; ++i) {
         bool is_current = (i == state.current_player);
-        int  hud_y = (i == this->bottom_player) ? (tt::WINDOW_HEIGHT - 56) : 16;
+        int  hud_y = (i == this->bottom_player)
+                       ? (int)(table.window_size().y - 56)
+                       : 16;
         draw_scopa_player_hud(state, i, is_current, hud_y);
       }
     };

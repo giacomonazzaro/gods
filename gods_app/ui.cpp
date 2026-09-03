@@ -144,16 +144,20 @@ void draw_card_power_badge(const std::string& power, bool destroyed) {
 }
 
 void draw_player_hud(
-  int player_id, int score, int deck_count, bool is_current, int hud_y
+  const Table_State& table,
+  int                player_id,
+  int                score,
+  int                deck_count,
+  bool               is_current,
+  int                hud_y
 ) {
   (void)player_id;
   (void)deck_count;
+  float window_width = table.window_size().x;
 
   if (is_current) {
     DrawRectangleRounded(
-      Rectangle{
-        (float)(tt::WINDOW_WIDTH - 10), (float)(hud_y + 28), 6.0f, 50.0f
-      },
+      Rectangle{window_width - 10.0f, (float)(hud_y + 28), 6.0f, 50.0f},
       0.5f,
       4,
       ::Color{255, 255, 255, 255}
@@ -163,7 +167,7 @@ void draw_player_hud(
   std::string score_text = "Points: " + std::to_string(score);
   render_text(
     score_text,
-    (float)(tt::WINDOW_WIDTH - 200),
+    window_width - 200.0f,
     (float)(hud_y + 22),
     40,
     Color{200, 200, 200, 255}

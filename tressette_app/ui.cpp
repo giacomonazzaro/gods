@@ -50,9 +50,10 @@ static const char* rank_label(int rank) {
 }
 
 std::vector<Thing> make_tressette_stacks(
-  int bottom_player, bool show_opponent_hand
+  const Table_State& table, int bottom_player, bool show_opponent_hand
 ) {
-  const int W           = tt::WINDOW_WIDTH;
+  const int W           = (int)table.window_size().x;
+  const int H           = (int)table.window_size().y;
   const int w           = tt::CARD_WIDTH;
   const int h           = tt::CARD_HEIGHT;
   const int margin      = 30;
@@ -64,9 +65,9 @@ std::vector<Thing> make_tressette_stacks(
   // window spans (-W/2, -H/2) to (W/2, H/2) in root-local space.
   auto window = Rectangle{
     -(float)W / 2.0f,
-    -(float)tt::WINDOW_HEIGHT / 2.0f,
+    -(float)H / 2.0f,
     (float)W,
-    (float)tt::WINDOW_HEIGHT,
+    (float)H,
   };
 
   // Position the local seat at the bottom and the opponent at the top.

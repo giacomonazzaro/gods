@@ -337,8 +337,10 @@ struct std::hash<Drop_Gesture> {
 
 // Full table state passed to every render and input function.
 struct Table_State : Table_Layout {
-  int width  = 0;
-  int height = 0;
+  int width  = tt::WINDOW_WIDTH;
+  int height = tt::WINDOW_HEIGHT;
+
+  Vector2 window_size() const { return Vector2{(float)width, (float)height}; }
 
   Drag_State               drag_state;
   std::vector<Transform2D> world_transforms_animated;

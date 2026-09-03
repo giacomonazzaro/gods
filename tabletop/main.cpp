@@ -25,10 +25,10 @@ static Table_State make_demo_table(const std::string& filename) {
     // vertically. This is the parent rect passed to place_inside() when
     // anchoring containers against the window edges.
     Rectangle root_rect = {
-      -(float)tt::WINDOW_WIDTH / 2.0f,
-      -(float)tt::WINDOW_HEIGHT / 2.0f,
-      (float)tt::WINDOW_WIDTH,
-      (float)tt::WINDOW_HEIGHT,
+      -table.window_size().x / 2.0f,
+      -table.window_size().y / 2.0f,
+      table.window_size().x,
+      table.window_size().y,
     };
 
     const int card_slot_width  = tt::CARD_WIDTH + 20;
@@ -127,10 +127,9 @@ static Table_State make_demo_table(const std::string& filename) {
     {
       Thing root;
       root.name = "root";
-      root.shape =
-        rectangle_shape({(float)tt::WINDOW_WIDTH, (float)tt::WINDOW_HEIGHT});
+      root.shape     = rectangle_shape(table.window_size());
       root.transform = {
-        tt::WINDOW_WIDTH / 2.0f, tt::WINDOW_HEIGHT / 2.0f, 0.0f
+        table.window_size().x / 2.0f, table.window_size().y / 2.0f, 0.0f
       };
       root._children = {deck_id, hand_id, discard_id};
       // Wooden table surface filling the whole window (no rounded corners).
@@ -177,8 +176,8 @@ int main(int argc, char** argv) {
       }
       return false;
     },
-    tt::WINDOW_WIDTH,
-    tt::WINDOW_HEIGHT,
+    (int)table.window_size().x,
+    (int)table.window_size().y,
     "Tabletop Demo"
   );
 }

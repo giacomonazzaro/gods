@@ -13,7 +13,7 @@
 // "p1_tricks", "stock" and "table"; game code finds them with find_thing().
 // Only the rects/face_up depend on which seat is at the bottom.
 std::vector<Thing> make_tressette_stacks(
-  int bottom_player, bool show_opponent_hand
+  const Table_State& table, int bottom_player, bool show_opponent_hand
 );
 
 // Draw callback that renders rank/suit text on each card face.

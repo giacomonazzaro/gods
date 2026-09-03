@@ -192,7 +192,9 @@ struct Chess_Giocamo : Giocamo_With_History<chess::Game_State> {
     );
 
     auto root = create_table_root(
-      tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT, "tabletop/data/wood.png"
+      (int)table.window_size().x,
+      (int)table.window_size().y,
+      "tabletop/data/wood.png"
     );
     // Pieces are never root children — each one is a child of the square (or
     // taken-row) Thing it sits in — so root's own children never change

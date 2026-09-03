@@ -92,8 +92,8 @@ static void draw_game_over_screen(const Giocamo& giocamo) {
   std::string result_text =
     tied > 1 ? "It's a tie." : "Player " + std::to_string(best + 1) + " wins!";
 
-  const int   W     = tt::WINDOW_WIDTH;
-  const int   H     = tt::WINDOW_HEIGHT;
+  const int   W     = (int)giocamo.table.window_size().x;
+  const int   H     = (int)giocamo.table.window_size().y;
   const char* title = "GAME OVER";
   std::string score_line;
   for (int player = 0; player < (int)scores.size(); ++player) {
@@ -238,7 +238,7 @@ static void run_game(
 
     // Playground toggle button (top-right).
     Rectangle screen_rect = {
-      0.0f, 0.0f, (float)tt::WINDOW_WIDTH, (float)tt::WINDOW_HEIGHT
+      0.0f, 0.0f, table.window_size().x, table.window_size().y
     };
     Rectangle button_rect =
       place_inside(screen_rect, 160, 32, "right", "top", 20);
@@ -334,7 +334,12 @@ static void run_game(
   };
 
   run_tabletop(
-    table, update, input_feed, tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT, window_title
+    table,
+    update,
+    input_feed,
+    (int)table.window_size().x,
+    (int)table.window_size().y,
+    window_title
   );
 
   // The menu, the game and the game-over screen all drew into one window;
@@ -348,8 +353,8 @@ void play_game(
   auto input_feed  = Input_Feed(options.input_mode, options.input_file_path);
   auto menu_result = run_menu(
     window_title,
-    tt::WINDOW_WIDTH,
-    tt::WINDOW_HEIGHT,
+    (int)giocamo.table.window_size().x,
+    (int)giocamo.table.window_size().y,
     input_feed,
     options.local_connection,
     options.skip_menu,

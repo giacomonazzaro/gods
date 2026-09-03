@@ -51,7 +51,8 @@ struct Gods_Agent_UI : Agent_UI {
   // The seat this screen plays. Set from Giocamo::bottom_player.
   int bottom_player = 0;
   // Highlights plus the power-edit target. The card draw callbacks read it.
-  Gods_UI ui_state = Gods_UI(tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT);
+  Gods_UI ui_state =
+    Gods_UI((int)table.window_size().x, (int)table.window_size().y);
 
   std::set<Card_Id, Card_Id_Less> card_multiselection;
 

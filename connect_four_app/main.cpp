@@ -60,7 +60,9 @@ struct Connect_Four_Giocamo : Giocamo_With_History<connect_four::Game_State> {
     }
 
     auto root = create_table_root(
-      tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT, "tabletop/data/wood.png"
+      (int)table.window_size().x,
+      (int)table.window_size().y,
+      "tabletop/data/wood.png"
     );
     root._children = column_ids;
     table.root     = add_thing(table, std::move(root));

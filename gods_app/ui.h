@@ -26,7 +26,12 @@ void draw_card_power_badge(const std::string& power, bool destroyed);
 // HUD: per-player score panel anchored at hud_y on the right side of the
 // screen.
 void draw_player_hud(
-  int player_id, int score, int deck_count, bool is_current, int hud_y
+  const Table_State& table,
+  int                player_id,
+  int                score,
+  int                deck_count,
+  bool               is_current,
+  int                hud_y
 );
 
 struct Gods_UI : UI_State {

@@ -191,7 +191,7 @@ int Air_Land_Sea_Agent_UI::choose_action_internal(
   // strip to stay readable over the cards.
   const std::string text  = instruction(choice);
   const float       width = (float)text_width(text, 20);
-  const float       left  = (float)tt::WINDOW_WIDTH / 2.0f - width / 2.0f;
+  const float       left  = table.window_size().x / 2.0f - width / 2.0f;
   DrawRectangle(
     (int)left - 16, 8, (int)width + 32, 34, ::Color{0, 0, 0, 200}
   );
@@ -213,7 +213,7 @@ int Air_Land_Sea_Agent_UI::choose_action_internal(
                                std::to_string(card_strength(top)) + ")";
       render_text(
         name,
-        (float)tt::WINDOW_WIDTH / 2.0f - (float)text_width(name, 18) / 2.0f,
+        table.window_size().x / 2.0f - (float)text_width(name, 18) / 2.0f,
         44.0f,
         18,
         Color{255, 235, 150, 255}

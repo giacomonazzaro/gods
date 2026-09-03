@@ -92,14 +92,17 @@ struct Mindbug_Giocamo : Giocamo_With_History<mindbug::Game_State> {
     }
 
     auto zone_ids = std::vector<int>();
-    auto zones =
-      make_mindbug_zones(bottom_player, tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT);
+    auto zones    = make_mindbug_zones(
+      bottom_player, (int)table.window_size().x, (int)table.window_size().y
+    );
     for (Thing& zone : zones) {
       zone_ids.push_back(add_thing(table, std::move(zone)));
     }
 
     // Empty texture path: the table is drawn with root.color.
-    auto root      = create_table_root(tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT, "");
+    auto root      = create_table_root(
+      (int)table.window_size().x, (int)table.window_size().y, ""
+    );
     root._children = zone_ids;
     root.color     = {0, 0, 0, 0};
     table.root     = add_thing(table, std::move(root));

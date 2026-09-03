@@ -214,7 +214,12 @@ static void draw_hud(
     int  hud_y      = bottom_wonders_y + h / 2;
     if (i != bottom_player) hud_y = top_wonders_y + h / 2;
     draw_player_hud(
-      i, score, (int)gods_state.players[i].deck.size(), is_current, hud_y
+      *table_state,
+      i,
+      score,
+      (int)gods_state.players[i].deck.size(),
+      is_current,
+      hud_y
     );
   }
 
@@ -428,7 +433,11 @@ struct Gods_Giocamo : Giocamo_With_History<Game_State> {
     player.bottom_player  = bottom_player;
 
     init_table_layout(
-      table, state, bottom_player, tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT
+      table,
+      state,
+      bottom_player,
+      (int)table.window_size().x,
+      (int)table.window_size().y
     );
     init_card_draw_callbacks(table, state, player.ui_state);
 

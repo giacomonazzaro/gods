@@ -550,8 +550,8 @@ void draw_zoomed_thing(
   const Table_State& state, const Input& input, int thing_id, bool face_up
 ) {
   // Drawn inside the screen-fit transform, so work in logical canvas coords.
-  int screen_w = tt::WINDOW_WIDTH;
-  int screen_h = tt::WINDOW_HEIGHT;
+  int screen_w = (int)state.window_size().x;
+  int screen_h = (int)state.window_size().y;
 
   // Dim background.
   DrawRectangle(0, 0, screen_w, screen_h, Color{0, 0, 0, 160});
@@ -767,6 +767,8 @@ void run_tabletop(
 ) {
   bool owns_window = !IsWindowReady();
   open_table_window(window_width, window_height, window_name);
+  table.width  = window_width;
+  table.height = window_height;
 
   while (!WindowShouldClose()) {
     auto input = next_input(input_feed);
