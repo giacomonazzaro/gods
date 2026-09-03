@@ -278,8 +278,10 @@ void handle_mouse_move(Table_State& state, const Input& input) {
     auto path = find_thing_at(mx, my, state);
     if (!input.left_pressed && !path.empty()) {
       int hovered_thing = path.back();
-      state.world_transforms_animated.at(hovered_thing).y =
-        state.world_transforms.at(hovered_thing).y - 10;
+      if (!state.things[hovered_thing].locked) {
+        state.world_transforms_animated[hovered_thing].y =
+          state.world_transforms[hovered_thing].y - 10;
+      }
     }
     return;
   }
@@ -399,7 +401,7 @@ Rectangle world_rect(int thing_id, const Table_State& state) {
 }
 
 Thing create_table_root(Vector2 size, const std::string& texture_path) {
-  auto root = Thing();
+  auto root   = Thing();
   root.name   = "root";
   root.locked = true;  // The background never drags.
   // Centered on the screen, so its rect spans (0,0)-(width,height) in world.
