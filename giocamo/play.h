@@ -15,6 +15,7 @@
 #include <variant>
 
 #include "menu.h"
+#include "undo.h"
 
 // SPACE-to-zoom: zooms the thing under the cursor while SPACE is held,
 // clears the zoom otherwise. tabletop's process_input also handles this
@@ -363,40 +364,6 @@ struct Giocamo {
 void play_game(
   Giocamo& giocamo, Play_Options& options, const std::string& window_title
 );
-
-// Every position the game has been in, and where in that list it is now. A
-// game is stateful and copyable, so a position is just a copy of it.
-template <typename Game_T>
-struct History {
-  std::vector<Game_T> states        = {};
-  int                 current_state = -1;
-
-  void save(const Game_T& game) {
-    // Playing on from an undone position drops what came after it: that
-    // future is not the game's any more.
-    this->states.resize(this->current_state + 1);
-    this->states.push_back(game);
-    this->current_state = (int)this->states.size() - 1;
-  }
-
-  bool undo(Game_T& game) {
-    if (this->current_state <= 0) {
-      return false;
-    }
-    this->current_state -= 1;
-    game = this->states[current_state];
-    return true;
-  }
-
-  bool redo(Game_T& game) {
-    if (this->current_state + 1 >= (int)this->states.size()) {
-      return false;
-    }
-    this->current_state += 1;
-    game = this->states[current_state];
-    return true;
-  };
-};
 
 // A game derives from this instead of Giocamo directly to get undo. Copying a
 // position needs the concrete game type, which is why this layer is a
