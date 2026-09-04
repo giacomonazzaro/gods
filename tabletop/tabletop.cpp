@@ -266,23 +266,15 @@ void handle_mouse_release(Table_State& state, const Input& input) {
 }
 
 void handle_mouse_move(Table_State& state, const Input& input) {
-  // Continuously update the dragged thing.s position.
-  Drag_State& drag = state.drag_state;
-
   float mx = (float)input.mouse_x;
   float my = (float)input.mouse_y;
 
+  state.hovered_thing = find_thing_at(mx, my, state);
+
+  // Continuously update the dragged thing.s position.
+  Drag_State& drag = state.drag_state;
+
   if (drag.thing_id() < 0) {
-    // Pop the hovered thing up a little, so the player can see what the
-    // mouse is over.
-    auto path = find_thing_at(mx, my, state);
-    if (!input.left_pressed && !path.empty()) {
-      int hovered_thing = path.back();
-      // if (!state.things[hovered_thing].locked) {
-      //   state.world_transforms_animated[hovered_thing].y =
-      //     state.world_transforms[hovered_thing].y - 10;
-      // }
-    }
     return;
   }
   update_things_positions(state, /*sort=*/true);

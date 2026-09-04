@@ -343,6 +343,7 @@ struct Table_State : Table_Layout {
   Vector2 size = {tt::WINDOW_WIDTH, tt::WINDOW_HEIGHT};
 
   Drag_State               drag_state;
+  Thing_Location           hovered_thing;
   std::vector<Transform2D> world_transforms_animated;
   std::vector<Transform2D> world_transforms;
 

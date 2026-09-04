@@ -419,10 +419,11 @@ static void update_world_transforms(
   std::vector<Transform2D>&       world_transforms
 ) {
   world_transforms[id] = parent_transform * local_transforms[id];
-  for (int child_id : things[id]._children)
+  for (int child_id : things[id]._children) {
     update_world_transforms(
       child_id, world_transforms[id], things, local_transforms, world_transforms
     );
+  }
 }
 
 void animate(
@@ -439,8 +440,19 @@ void animate(
   //   // return;
   // } else
   {
-    float vx = (target[i].x - animated[i].x) * dt;
-    float vy = (target[i].y - animated[i].y) * dt;
+    float target_x = target[i].x;
+    float target_y = target[i].y;
+
+    if (table.hovered_thing.size()) {
+      auto hovered_id = table.hovered_thing.back();
+      if (hovered_id == i && !table.things[i].locked) {
+        target_y -= 10.f;
+      }
+    }
+
+    float vx = (target_x - animated[i].x) * dt;
+    float vy = (target_y - animated[i].y) * dt;
+
     // Cap per-frame travel so big jumps (e.g. trick → captured pile) glide
     // instead of teleporting.
     // const float speed     = std::sqrt(vx * vx + vy * vy);
