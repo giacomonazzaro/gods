@@ -393,10 +393,13 @@ void process_input(Table_State& state, const Input& input) {
 #include "raylib.h"
 
 Rectangle world_rect(int thing_id, const Table_State& state) {
-  float        px   = state.world_transforms[thing_id].x;
-  float        py   = state.world_transforms[thing_id].y;
-  const Thing& t    = state.things[thing_id];
-  Vector2      size = shape_size(t.shape);
+  float        px    = state.world_transforms[thing_id].x;
+  float        py    = state.world_transforms[thing_id].y;
+  float        scale = state.world_transforms[thing_id].scale;
+  const Thing& t     = state.things[thing_id];
+  Vector2      size  = shape_size(t.shape);
+  size.x *= scale;
+  size.y *= scale;
   return Rectangle{px - size.x / 2.0f, py - size.y / 2.0f, size.x, size.y};
 }
 

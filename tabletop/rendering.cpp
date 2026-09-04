@@ -454,6 +454,7 @@ void animate(
                            target[i].rotation * dt;
     // Rotation eases toward target with a small swing that tilts the thing.
     animated[i].rotation += vx * 0.1f;
+    animated[i].scale = animated[i].scale * (1.0f - dt) + target[i].scale * dt;
   }
 
   if (smoothout && table.drag_state.thing_id() == i) {
@@ -484,6 +485,9 @@ static void apply_world_transform(const Transform2D& wt) {
   rlTranslatef(wt.x, wt.y, 0.0f);
   if (wt.rotation != 0.0f) {
     rlRotatef(wt.rotation, 0.0f, 0.0f, 1.0f);
+  }
+  if (wt.scale != 1.0f) {
+    rlScalef(wt.scale, wt.scale, 1.0f);
   }
 }
 

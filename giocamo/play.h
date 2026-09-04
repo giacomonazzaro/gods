@@ -105,12 +105,14 @@ struct Gesture_Drag_And_Drop {
 // every thing offering this gesture for a given choice — they describe the
 // whole selection, not this one thing.
 struct Gesture_Multi_Select {
-  int  count;   // how many things the choice wants.
-  bool up_to;   // pick up to count, instead of exactly count.
+  int  count;  // how many things the choice wants.
+  bool up_to;  // pick up to count, instead of exactly count.
 };
 
 using Play_Gesture = std::variant<
-  Gesture_Option, Gesture_Selection, Gesture_Drag_And_Drop,
+  Gesture_Option,
+  Gesture_Selection,
+  Gesture_Drag_And_Drop,
   Gesture_Multi_Select>;
 
 struct Agent_UI : Agent {
@@ -162,8 +164,8 @@ struct Agent_UI : Agent {
       highlight_thing_border(table, selected_thing_id, selected_color);
       Rectangle button = button_anchor;
       if (immediate_button(button, "Done", *input)) {
-        int action_index = -1;
-        auto it = gesture_map.find(selected_thing_id);
+        int  action_index = -1;
+        auto it           = gesture_map.find(selected_thing_id);
         if (it != gesture_map.end()) {
           for (const Play_Gesture& gesture : it->second) {
             if (auto* selection = std::get_if<Gesture_Selection>(&gesture)) {
@@ -211,7 +213,7 @@ struct Agent_UI : Agent {
       if (multi_count != -1) {
         auto picked_color = Color{0, 200, 255, 255};
         for (const auto& entry : gesture_map) {
-          int thing_id = entry.first;
+          int  thing_id  = entry.first;
           bool has_multi = false;
           for (const Play_Gesture& gesture : entry.second) {
             if (std::holds_alternative<Gesture_Multi_Select>(gesture)) {
@@ -220,10 +222,10 @@ struct Agent_UI : Agent {
           }
           if (!has_multi) continue;
 
-          bool picked = std::find(
-                          multi_selection.begin(), multi_selection.end(),
-                          thing_id
-                        ) != multi_selection.end();
+          bool picked =
+            std::find(
+              multi_selection.begin(), multi_selection.end(), thing_id
+            ) != multi_selection.end();
           highlight_thing_border(
             table, thing_id, picked ? picked_color : color
           );

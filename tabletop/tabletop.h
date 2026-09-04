@@ -23,24 +23,27 @@ struct Transform2D {
   float x        = 0.0f;
   float y        = 0.0f;
   float rotation = 0.0f;
+  float scale    = 1.0f;
 };
-VISITABLE_STRUCT(Transform2D, x, y, rotation);
+VISITABLE_STRUCT(Transform2D, x, y, rotation, scale);
 
 // Compose two transforms: `parent * child` is the transform that applies
-// `child` first, then `parent`. The child's translation is rotated by the
-// parent's rotation before being added — without that, a child anchored
-// to a rotating parent would stay aligned to the parent's original axes.
-// Rotation is in degrees.
+// `child` first, then `parent`. The child's translation is rotated and
+// scaled by the parent before being added — without that, a child anchored
+// to a rotating or scaled parent would stay aligned to the parent's
+// original axes and size. Rotation is in degrees.
 inline Transform2D operator*(
   const Transform2D& parent, const Transform2D& child
 ) {
   float angle = parent.rotation * (float)(M_PI / 180.0);
   float cos_a = std::cos(angle);
   float sin_a = std::sin(angle);
+  float scale = parent.scale * child.scale;
   return Transform2D{
-    parent.x + cos_a * child.x - sin_a * child.y,
-    parent.y + sin_a * child.x + cos_a * child.y,
+    parent.x + parent.scale * (cos_a * child.x - sin_a * child.y),
+    parent.y + parent.scale * (sin_a * child.x + cos_a * child.y),
     parent.rotation + child.rotation,
+    scale,
   };
 }
 
@@ -48,10 +51,12 @@ inline Transform2D inverse(const Transform2D& t) {
   float angle = -t.rotation * (float)(M_PI / 180.0);
   float cos_a = std::cos(angle);
   float sin_a = std::sin(angle);
+  float scale = 1.0f / t.scale;
   return Transform2D{
-    -(cos_a * t.x - sin_a * t.y),
-    -(sin_a * t.x + cos_a * t.y),
+    scale * -(cos_a * t.x - sin_a * t.y),
+    scale * -(sin_a * t.x + cos_a * t.y),
     -t.rotation,
+    scale,
   };
 }
 

@@ -340,8 +340,8 @@ static void run_game(
 }
 
 void play_game(
-  Giocamo_Generic&    giocamo,
-  Play_Options&       options,
+  Giocamo_Generic&   giocamo,
+  Play_Options&      options,
   const std::string& window_title
 ) {
   auto input_feed  = Input_Feed(options.input_mode, options.input_file_path);
