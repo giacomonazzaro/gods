@@ -434,10 +434,11 @@ void animate(
   bool                            smoothout = true
 ) {
   dt = 0.1;
-  if (i == table.drag_state.thing_id() || !smoothout) {
-    animated[i] = target[i];  // Snap to cursor.
-    // return;
-  } else {
+  // if (i == table.drag_state.thing_id() || !smoothout) {
+  //   animated[i] = target[i];  // Snap to cursor.
+  //   // return;
+  // } else
+  {
     float vx = (target[i].x - animated[i].x) * dt;
     float vy = (target[i].y - animated[i].y) * dt;
     // Cap per-frame travel so big jumps (e.g. trick → captured pile) glide
@@ -452,14 +453,19 @@ void animate(
     animated[i].y += vy;
     animated[i].rotation = animated[i].rotation * (1.0f - dt) +
                            target[i].rotation * dt;
+
     // Rotation eases toward target with a small swing that tilts the thing.
     animated[i].rotation += vx * 0.1f;
-    animated[i].scale = animated[i].scale * (1.0f - dt) + target[i].scale * dt;
+
+    float target_scale = target[i].scale;
+    if (table.drag_state.thing_id() == i) target_scale += 1.0f / 8;
+
+    animated[i].scale = animated[i].scale * (1.0f - dt) + target_scale * dt;
   }
 
-  if (smoothout && table.drag_state.thing_id() == i) {
-    smoothout = false;
-  }
+  // if (smoothout && table.drag_state.thing_id() == i) {
+  //   smoothout = false;
+  // }
   for (int child_id : table.things[i].children()) {
     animate(child_id, animated, target, table, dt, smoothout);
   }
@@ -534,15 +540,15 @@ static void draw_thing_world(
 ) {
   const Thing& t       = state.things[id];
   const bool   face_up = parent_face_up && t.face_up;
-  if (id != state.drag_state.thing_id()) {
-    rlPushMatrix();
-    apply_world_transform(state.world_transforms_animated[id]);
-    draw_thing(t, face_up);
-    auto cb = state.draw_callbacks.find(id);
-    if (cb != state.draw_callbacks.end()) cb->second(state, input, face_up);
-    draw_highlight(id, state);
-    rlPopMatrix();
-  }
+
+  rlPushMatrix();
+  apply_world_transform(state.world_transforms_animated[id]);
+  draw_thing(t, face_up);
+  auto cb = state.draw_callbacks.find(id);
+  if (cb != state.draw_callbacks.end()) cb->second(state, input, face_up);
+  draw_highlight(id, state);
+  rlPopMatrix();
+
   for (int child_id : state.things[id].children()) {
     draw_thing_world(child_id, state, face_up, input);
   }
@@ -633,22 +639,12 @@ void draw_table(Table_State& state, const Input& input) {
 
   draw_thing_world(state.root, state, state.things[state.root].face_up, input);
 
-  // Dragged thing overlay: drawn last so it sits above everything else.
-  int dragged = state.drag_state.thing_id();
-  if (dragged >= 0) {
-    bool face_up = true;
-    int  orig    = state.drag_state.parent_id();
-    if (orig >= 0 && orig != state.root) face_up = state.things[orig].face_up;
-    rlPushMatrix();
-    apply_world_transform(state.world_transforms[dragged]);
-    // The thing is drawn 10% bigger while it is dragged, so it reads as lifted
-    // off the table.
-    rlScalef(1.1f, 1.1f, 1.0f);
-    draw_thing(state.things[dragged], face_up);
-    auto cb = state.draw_callbacks.find(dragged);
-    if (cb != state.draw_callbacks.end()) cb->second(state, input, face_up);
-    draw_highlight(dragged, state);
-    rlPopMatrix();
+  // Draw dragged thing again so it's on top of everything else.
+  int dragged_thing = state.drag_state.thing_id();
+  if (dragged_thing >= 0) {
+    draw_thing_world(
+      dragged_thing, state, state.things[dragged_thing].face_up, input
+    );
   }
 
   // Every outline and brightening asked for has been drawn; the next frame
@@ -777,7 +773,10 @@ void run_tabletop(
   }
   table.world_transforms.resize(table.things.size());
   update_world_transforms(
-    table.root, Transform2D{}, table.things, local_transforms,
+    table.root,
+    Transform2D{},
+    table.things,
+    local_transforms,
     table.world_transforms
   );
   table.world_transforms_animated = table.world_transforms;

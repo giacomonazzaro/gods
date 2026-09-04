@@ -258,7 +258,6 @@ void handle_mouse_release(Table_State& state, const Input& input) {
 
   // Add.
   update_local_transform_to_match_world_transform(state, new_parent, thing_id);
-  state.world_transforms_animated[thing_id] = state.world_transforms[thing_id];
   state.things[new_parent].add_child(thing_id);
   update_things_positions(state, /*sort=*/true);
 
@@ -279,10 +278,10 @@ void handle_mouse_move(Table_State& state, const Input& input) {
     auto path = find_thing_at(mx, my, state);
     if (!input.left_pressed && !path.empty()) {
       int hovered_thing = path.back();
-      if (!state.things[hovered_thing].locked) {
-        state.world_transforms_animated[hovered_thing].y =
-          state.world_transforms[hovered_thing].y - 10;
-      }
+      // if (!state.things[hovered_thing].locked) {
+      //   state.world_transforms_animated[hovered_thing].y =
+      //     state.world_transforms[hovered_thing].y - 10;
+      // }
     }
     return;
   }
