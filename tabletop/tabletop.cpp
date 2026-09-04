@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <random>
+#include <unordered_map>
 
 #include "config.h"
 #include "raylib.h"
@@ -188,7 +189,7 @@ void handle_mouse_press(Table_State& state, const Input& input) {
   int parent_id = path[path.size() - 2];
   if (state.things[thing_id].locked) return;
 
-  Thing_Location parent_path(path.begin(), path.end() - 1);
+  auto parent_path   = Thing_Location(path.begin(), path.end() - 1);
   drag.dragged_thing = std::move(path);
   drag.hovered_thing = std::move(parent_path);
 
@@ -384,13 +385,6 @@ void process_input(Table_State& state, const Input& input) {
     }
   }
 }
-
-#include <algorithm>
-#include <cassert>
-#include <unordered_map>
-
-#include "config.h"
-#include "raylib.h"
 
 Rectangle world_rect(int thing_id, const Table_State& state) {
   float        px    = state.world_transforms[thing_id].x;
