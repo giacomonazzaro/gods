@@ -434,7 +434,11 @@ void animate(
   float                           dt,
   bool                            smoothout = true
 ) {
-  dt = 0.2;
+  // Frame-rate-independent easing: this converges to the same place after the
+  // same amount of real time, no matter how dt is split across frames.
+  float speed = 13.0f;
+  float a     = 1.0f - std::exp(-speed * dt);
+
   // if (i == table.drag_state.thing_id() || !smoothout) {
   //   animated[i] = target[i];  // Snap to cursor.
   //   // return;
@@ -460,8 +464,8 @@ void animate(
       target_y = table.size.y / 2.0f;
     }
 
-    float vx = (target_x - animated[i].x) * dt;
-    float vy = (target_y - animated[i].y) * dt;
+    float vx = (target_x - animated[i].x) * a;
+    float vy = (target_y - animated[i].y) * a;
 
     // Cap per-frame travel so big jumps (e.g. trick → captured pile) glide
     // instead of teleporting.
@@ -473,8 +477,8 @@ void animate(
     // }
     animated[i].x += vx;
     animated[i].y += vy;
-    animated[i].rotation = animated[i].rotation * (1.0f - dt) +
-                           target[i].rotation * dt;
+    animated[i].rotation = animated[i].rotation * (1.0f - a) +
+                           target[i].rotation * a;
 
     // Rotation eases toward target with a small swing that tilts the thing.
     animated[i].rotation += vx * 0.1f;
@@ -489,7 +493,7 @@ void animate(
       );
     }
 
-    animated[i].scale = animated[i].scale * (1.0f - dt) + target_scale * dt;
+    animated[i].scale = animated[i].scale * (1.0f - a) + target_scale * a;
   }
 
   // if (smoothout && table.drag_state.thing_id() == i) {
@@ -506,12 +510,11 @@ void animate(
   const Table_State&              table,
   float                           dt
 ) {
-  // The smoothing factor must stay below 1, otherwise the lerp overshoots its
-  // target and flings things far away. A long frame (e.g. the synchronous AI
-  // search on web blocking the loop) makes dt spike, so cap the factor: a big
-  // hitch then snaps to the target instead of exploding.
-  float smoothing = std::min(dt * 10.0f, 1.0f);
-  animate(table.root, animated, target, table, smoothing);
+#if 0
+  ((Table_State*)&table)->world_transforms_animated = table.world_transforms;
+#else
+  animate(table.root, animated, target, table, dt);
+#endif
 }
 
 // Translate to (wt.x, wt.y) — which is the thing's center — and rotate
@@ -599,16 +602,12 @@ void draw_table(Table_State& state, const Input& input) {
     state.world_transforms
   );
 
-#if 0
-  state.world_transforms_animated = state.world_transforms;
-#else
   animate(
     state.world_transforms_animated,
     state.world_transforms,
     state,
     input.delta_time
   );
-#endif
 
   // Highlight the hovered drop target while dragging.
   // if (!state.drag_state.hovered_thing.empty()) {
