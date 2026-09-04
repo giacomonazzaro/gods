@@ -434,7 +434,7 @@ void animate(
   float                           dt,
   bool                            smoothout = true
 ) {
-  dt = 0.1;
+  dt = 0.2;
   // if (i == table.drag_state.thing_id() || !smoothout) {
   //   animated[i] = target[i];  // Snap to cursor.
   //   // return;
@@ -445,9 +445,19 @@ void animate(
 
     if (table.hovered_thing.size()) {
       auto hovered_id = table.hovered_thing.back();
-      if (hovered_id == i && !table.things[i].locked) {
+      if (hovered_id == i && !table.things[i].locked &&
+          table.drag_state.thing_id() != i) {
         target_y -= 10.f;
       }
+    }
+
+    // The zoomed thing grows into the center of the table, in place — it is
+    // still drawn where it normally sits in the tree, just bigger.
+    bool zoomed = table.zoomed_thing_id.size() &&
+                  table.zoomed_thing_id.back() == i;
+    if (zoomed) {
+      target_x = table.size.x / 2.0f;
+      target_y = table.size.y / 2.0f;
     }
 
     float vx = (target_x - animated[i].x) * dt;
@@ -471,6 +481,13 @@ void animate(
 
     float target_scale = target[i].scale;
     if (table.drag_state.thing_id() == i) target_scale += 1.0f / 8;
+    if (zoomed) {
+      float margin = 40.0f;
+      target_scale = std::min(
+        (table.size.x - 2.0f * margin) / (float)tt::CARD_WIDTH,
+        (table.size.y - 2.0f * margin) / (float)tt::CARD_HEIGHT
+      );
+    }
 
     animated[i].scale = animated[i].scale * (1.0f - dt) + target_scale * dt;
   }
@@ -566,42 +583,6 @@ static void draw_thing_world(
   }
 }
 
-// --- draw_zoomed_thing ---
-
-void draw_zoomed_thing(
-  const Table_State& state, const Input& input, int thing_id, bool face_up
-) {
-  // Drawn inside the screen-fit transform, so work in logical canvas coords.
-  int screen_w = (int)state.size.x;
-  int screen_h = (int)state.size.y;
-
-  // Dim background.
-  DrawRectangle(0, 0, screen_w, screen_h, Color{0, 0, 0, 160});
-
-  float thing_w = (float)tt::CARD_WIDTH;
-  float thing_h = (float)tt::CARD_HEIGHT;
-  float margin  = 40.0f;
-
-  // Scale to fill the screen with some margin.
-  float scale = std::min(
-    ((float)screen_w - 2.0f * margin) / thing_w,
-    ((float)screen_h - 2.0f * margin) / thing_h
-  );
-
-  // draw_thing draws centered at origin; translate to the screen center.
-  float cx = (float)screen_w / 2.0f;
-  float cy = (float)screen_h / 2.0f;
-
-  const Thing& thing = state.things[thing_id];
-  rlPushMatrix();
-  rlTranslatef(cx, cy, 0.0f);
-  rlScalef(scale, scale, 1.0f);
-  draw_thing(thing, face_up);
-  auto cb = state.draw_callbacks.find(thing_id);
-  if (cb != state.draw_callbacks.end()) cb->second(state, input, face_up);
-  rlPopMatrix();
-}
-
 // --- draw_table ---
 
 void draw_table(Table_State& state, const Input& input) {
@@ -659,6 +640,14 @@ void draw_table(Table_State& state, const Input& input) {
     );
   }
 
+  int zoomed_thing = state.zoomed_thing_id.size() ? state.zoomed_thing_id.back()
+                                                  : -1;
+  if (zoomed_thing >= 0) {
+    draw_thing_world(
+      zoomed_thing, state, state.things[zoomed_thing].face_up, input
+    );
+  }
+
   // Every outline and brightening asked for has been drawn; the next frame
   // asks again.
   state.highlights.clear();
@@ -669,18 +658,6 @@ void draw_table(Table_State& state, const Input& input) {
   auto hud_it = state.draw_callbacks.find(-1);
   if (hud_it != state.draw_callbacks.end()) {
     hud_it->second(state, input, true);
-  }
-
-  // Zoomed thing on top of everything. zoomed_thing_id is a path [root, ...,
-  // thing] when set; its direct parent (path[size-2]) is the owning parent.
-  if (!state.zoomed_thing_id.empty()) {
-    int  thing_id = state.zoomed_thing_id.back();
-    bool face_up  = true;
-    if (state.zoomed_thing_id.size() >= 2) {
-      int owner = state.zoomed_thing_id[state.zoomed_thing_id.size() - 2];
-      face_up   = state.things[owner].face_up;
-    }
-    draw_zoomed_thing(state, input, thing_id, face_up);
   }
 }
 
