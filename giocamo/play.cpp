@@ -22,7 +22,9 @@ void update_zoomed_thing(Table_State& table_state, const Input& input) {
 
 // The whole game state, sent after every move the local player makes and after
 // every undo, so the other player reads it and lays the table out again.
-static void send_game_state(const Online& online, const Giocamo& giocamo) {
+static void send_game_state(
+  const Online& online, const Giocamo_Generic& giocamo
+) {
   auto game_state = giocamo.game_state_to_json();
   // A game that cannot be written as JSON sends nothing. The other player then
   // moves forward on the action index alone, which Agent_Remote already sends.
@@ -73,7 +75,7 @@ Agent* make_duel(
   );
 }
 
-static void draw_game_over_screen(const Giocamo& giocamo) {
+static void draw_game_over_screen(const Giocamo_Generic& giocamo) {
   auto scores = giocamo.player_scores();
   bool lower  = giocamo.lower_score_wins();
 
@@ -178,7 +180,7 @@ Agent* make_agent_pair(
 
 // The loop both call shapes share.
 static void run_game(
-  Giocamo&           giocamo,
+  Giocamo_Generic&   giocamo,
   Input_Feed&        input_feed,
   Agent&             agent,
   const Online*      online,
@@ -338,7 +340,9 @@ static void run_game(
 }
 
 void play_game(
-  Giocamo& giocamo, Play_Options& options, const std::string& window_title
+  Giocamo_Generic&    giocamo,
+  Play_Options&       options,
+  const std::string& window_title
 ) {
   auto input_feed  = Input_Feed(options.input_mode, options.input_file_path);
   auto menu_result = run_menu(

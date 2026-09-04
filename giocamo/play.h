@@ -311,7 +311,7 @@ struct Agent_UI : Agent {
   }
 };
 
-struct Giocamo {
+struct Giocamo_Generic {
   Game&        game;
   Agent_UI&    agent_ui;
   Table_State& table;
@@ -319,10 +319,10 @@ struct Giocamo {
   int  bottom_player;
   bool hot_seat;
 
-  Giocamo(Game& game, Agent_UI& agent_ui)
+  Giocamo_Generic(Game& game, Agent_UI& agent_ui)
       : game(game), agent_ui(agent_ui), table(agent_ui.table) {}
 
-  virtual ~Giocamo()                      = default;
+  virtual ~Giocamo_Generic()              = default;
   virtual void   init_table()             = 0;
   virtual void   update_table_from_game() = 0;
   virtual Agent* agent_opponent()         = 0;
@@ -362,16 +362,18 @@ struct Giocamo {
 // seed, lays the table out, then runs the table-top loop until the window
 // closes.
 void play_game(
-  Giocamo& giocamo, Play_Options& options, const std::string& window_title
+  Giocamo_Generic&   giocamo,
+  Play_Options&      options,
+  const std::string& window_title
 );
 
-// A game derives from this instead of Giocamo directly to get undo. Copying a
-// position needs the concrete game type, which is why this layer is a
-// template — run_game still only ever sees Giocamo and calls the three hooks
-// above.
+// A game derives from this instead of Giocamo_Generic directly to get undo.
+// Copying a position needs the concrete game type, which is why this layer is
+// a template — run_game still only ever sees Giocamo_Generic and calls the
+// three hooks above.
 template <typename Game_T>
-struct Giocamo_With_History : Giocamo {
-  using Giocamo::Giocamo;
+struct Giocamo_With_History : Giocamo_Generic {
+  using Giocamo_Generic::Giocamo_Generic;
 
   History<Game_T> history;
 
