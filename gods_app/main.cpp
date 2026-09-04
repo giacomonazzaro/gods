@@ -411,9 +411,9 @@ static void handle_discard_expand(
 
 // Gods on the table. The table is laid out once here; play_game deals the game
 // and drives the loop through these hooks.
-struct Gods_Giocamo : Giocamo_With_History<Game_State> {
+struct Gods_Giocamo : Giocamo<Game_State> {
   Gods_Giocamo(Game_State& game, Gods_Agent_UI& agent_ui)
-      : Giocamo_With_History<Game_State>(game, agent_ui) {}
+      : Giocamo<Game_State>(game, agent_ui) {}
 
   Game_State& gods_game() { return static_cast<Game_State&>(game); }
   const Game_State& gods_game() const {

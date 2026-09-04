@@ -12,7 +12,7 @@
 // discard phase) and presses Commit once the right number are there. Until
 // then choose_action returns -1, so the game waits.
 struct Dot_Agent_UI : Agent_UI {
-  // Which seat the local player controls. Set from Giocamo::bottom_player.
+  // Which seat the local player controls. Set from Giocamo_Generic::bottom_player.
   int player_index = 0;
   // Which cards get a "legal move" border. The card draw callbacks read it.
   UI_State ui_state = UI_State(table.size);

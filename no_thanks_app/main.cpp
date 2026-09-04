@@ -196,9 +196,9 @@ struct No_Thanks_Agent_UI : Agent_UI {
 
 // No Thanks! on the table. The table is laid out once here; play_game deals the
 // game and drives the loop through these hooks.
-struct No_Thanks_Giocamo : Giocamo_With_History<Game_State> {
+struct No_Thanks_Giocamo : Giocamo<Game_State> {
   No_Thanks_Giocamo(Game_State& game, No_Thanks_Agent_UI& agent_ui)
-      : Giocamo_With_History<Game_State>(game, agent_ui) {}
+      : Giocamo<Game_State>(game, agent_ui) {}
 
   // The pile each chip lies in: a player, or POT_PILE for the card. The game
   // only counts chips, so this is what tells one chip from another.

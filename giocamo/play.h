@@ -346,7 +346,7 @@ struct Giocamo_Generic {
   // reads this to name the winner.
   virtual bool lower_score_wins() const { return false; }
 
-  // Therse are implemented by Giocamo_With_History, no need to override.
+  // Therse are implemented by Giocamo, no need to override.
   virtual void save_state() {}
   virtual bool undo() { return false; }
   virtual bool redo() { return false; }
@@ -372,7 +372,7 @@ void play_game(
 // a template — run_game still only ever sees Giocamo_Generic and calls the
 // three hooks above.
 template <typename Game_T>
-struct Giocamo_With_History : Giocamo_Generic {
+struct Giocamo : Giocamo_Generic {
   using Giocamo_Generic::Giocamo_Generic;
 
   History<Game_T> history;

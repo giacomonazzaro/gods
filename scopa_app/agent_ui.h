@@ -13,7 +13,7 @@
 // drag one onto the table, and (when the drop has more than one capture
 // option) prompts them to pick which subset of the table cards to take.
 struct Scopa_Agent_UI : Agent_UI {
-  // The seat this screen plays. Set from Giocamo::bottom_player.
+  // The seat this screen plays. Set from Giocamo_Generic::bottom_player.
   int player_index = 0;
   // Which cards get a "legal move" border. The card draw callbacks read it.
   UI_State ui_state = UI_State(table.size);

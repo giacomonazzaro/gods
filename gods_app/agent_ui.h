@@ -48,7 +48,7 @@ struct Card_Id_Less {
 // UI-driven agent: reads drag/drop, button clicks, and card presses from the
 // player to feed choose_action with an action index. Mirrors agent_ui.py.
 struct Gods_Agent_UI : Agent_UI {
-  // The seat this screen plays. Set from Giocamo::bottom_player.
+  // The seat this screen plays. Set from Giocamo_Generic::bottom_player.
   int bottom_player = 0;
   // Highlights plus the power-edit target. The card draw callbacks read it.
   Gods_UI ui_state = Gods_UI(table.size);

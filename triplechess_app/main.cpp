@@ -88,14 +88,14 @@ static Agent* make_mcts_agent() {
 
 // Triplechess on the table. The table is laid out once here; play_game sets the
 // position up and drives the loop through these hooks.
-struct Triplechess_Giocamo : Giocamo_With_History<triplechess::Game_State> {
+struct Triplechess_Giocamo : Giocamo<triplechess::Game_State> {
   // --watch: the two bots play each other and we just spectate.
   bool watch = false;
 
   Triplechess_Giocamo(
     triplechess::Game_State& game, Triplechess_Agent_UI& agent_ui
   )
-      : Giocamo_With_History<triplechess::Game_State>(game, agent_ui) {}
+      : Giocamo<triplechess::Game_State>(game, agent_ui) {}
 
   triplechess::Game_State& triplechess_game() {
     return static_cast<triplechess::Game_State&>(game);

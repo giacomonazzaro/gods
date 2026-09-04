@@ -149,9 +149,9 @@ static std::vector<Thing> make_zones(int bottom_player) {
 
 // Air, Land, & Sea on the table. The table is laid out once here; play_game
 // deals the game and drives the loop through these hooks.
-struct Air_Land_Sea_Giocamo : Giocamo_With_History<Game_State> {
+struct Air_Land_Sea_Giocamo : Giocamo<Game_State> {
   Air_Land_Sea_Giocamo(Game_State& game, Air_Land_Sea_Agent_UI& agent_ui)
-      : Giocamo_With_History<Game_State>(game, agent_ui) {}
+      : Giocamo<Game_State>(game, agent_ui) {}
 
   Game_State&       als_game() { return static_cast<Game_State&>(game); }
   const Game_State& als_game() const {

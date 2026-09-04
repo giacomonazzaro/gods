@@ -26,11 +26,11 @@
 
 // Connect Four on the table. The table is laid out once here; play_game deals
 // the game and drives the loop through these hooks.
-struct Connect_Four_Giocamo : Giocamo_With_History<connect_four::Game_State> {
+struct Connect_Four_Giocamo : Giocamo<connect_four::Game_State> {
   Connect_Four_Giocamo(
     connect_four::Game_State& game, Connect_Four_Agent_UI& agent_ui
   )
-      : Giocamo_With_History<connect_four::Game_State>(game, agent_ui) {}
+      : Giocamo<connect_four::Game_State>(game, agent_ui) {}
 
   connect_four::Game_State& board_game() {
     return static_cast<connect_four::Game_State&>(game);
